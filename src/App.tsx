@@ -100,6 +100,7 @@ export default function App() {
         {currentView === 'blood' && (
           <BloodDonationPage
             onNavigate={handleNavigate}
+            onOpenLogin={() => setIsLoginOpen(true)}
           />
         )}
 

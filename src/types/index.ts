@@ -146,12 +146,15 @@ export interface BloodDonor {
   location: string;
   isAvailable: boolean;
   lastDonationDate?: string;
+  notes?: string;
+  createdAt?: string;
 }
 
 export interface BloodRequest {
   id: string;
   requesterId: string;
   requesterName: string;
+  requesterAvatar?: string;
   bloodGroup: BloodGroup;
   hospital: string;
   location: string;
@@ -160,7 +163,30 @@ export interface BloodRequest {
   contactPhone: string;
   urgency: 'Normal' | 'Urgent' | 'Critical';
   notes: string;
-  status: 'Open' | 'Fulfilled' | 'Cancelled';
+  status: 'Open' | 'Accepted' | 'Fulfilled' | 'Cancelled';
+  acceptedById?: string;
+  acceptedByName?: string;
+  acceptedByPhone?: string;
+  acceptedAt?: string;
+  donorMessage?: string;
+  createdAt: string;
+}
+
+export interface DonorDirectRequest {
+  id: string;
+  donorId: string;
+  donorUserId?: string;
+  donorName: string;
+  requesterId: string;
+  requesterName: string;
+  requesterPhone: string;
+  hospital: string;
+  location: string;
+  bloodGroup: BloodGroup;
+  unitsNeeded: number;
+  dateNeeded: string;
+  notes?: string;
+  status: 'Pending' | 'Accepted' | 'Declined';
   createdAt: string;
 }
 

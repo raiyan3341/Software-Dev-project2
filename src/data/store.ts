@@ -9,6 +9,8 @@ import {
   OrderStatus,
   BloodDonor,
   BloodRequest,
+  DonorDirectRequest,
+  BloodGroup,
   ProductDemandRequest,
   ActivityLog,
   UserProfile,
@@ -38,6 +40,7 @@ const STORAGE_KEYS = {
   ORDERS: 'medistock_orders_clean',
   DONORS: 'medistock_donors_clean',
   BLOOD_REQUESTS: 'medistock_blood_reqs_clean',
+  DONOR_REQUESTS: 'medistock_donor_reqs_clean',
   DEMAND_REQUESTS: 'medistock_demand_reqs_clean',
   ACTIVITY_LOGS: 'medistock_logs_clean',
   CART: 'medistock_cart_clean',
@@ -123,6 +126,10 @@ function useMediStockStoreInternal() {
     loadFromStorage<BloodRequest[]>(STORAGE_KEYS.BLOOD_REQUESTS, INITIAL_BLOOD_REQUESTS)
   );
 
+  const [donorRequests, setDonorRequestsState] = useState<DonorDirectRequest[]>(() =>
+    loadFromStorage<DonorDirectRequest[]>(STORAGE_KEYS.DONOR_REQUESTS, [])
+  );
+
   const [demandRequests, setDemandRequestsState] = useState<ProductDemandRequest[]>(() =>
     loadFromStorage<ProductDemandRequest[]>(STORAGE_KEYS.DEMAND_REQUESTS, INITIAL_DEMAND_REQUESTS)
   );
@@ -180,6 +187,11 @@ function useMediStockStoreInternal() {
   const setBloodRequests = (newReqs: BloodRequest[]) => {
     setBloodRequestsState(newReqs);
     saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, newReqs);
+  };
+
+  const setDonorRequests = (newReqs: DonorDirectRequest[]) => {
+    setDonorRequestsState(newReqs);
+    saveToStorage(STORAGE_KEYS.DONOR_REQUESTS, newReqs);
   };
 
   const setDemandRequests = (newReqs: ProductDemandRequest[]) => {
@@ -754,8 +766,9 @@ function useMediStockStoreInternal() {
   }) => {
     const newReq: BloodRequest = {
       id: `breq-${Date.now()}`,
-      requesterId: currentUser?.id || 'user-normal-1',
+      requesterId: currentUser?.id || 'guest',
       requesterName: data.requesterName,
+      requesterAvatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
       bloodGroup: data.bloodGroup,
       hospital: data.hospital,
       location: data.location,
@@ -774,13 +787,184 @@ function useMediStockStoreInternal() {
     }
 
     addNotification({
-      title: 'Emergency Blood Request Posted',
+      title: 'Emergency Blood Request Posted 🩸',
       message: `${data.bloodGroup} urgently needed at ${data.hospital} (${data.unitsNeeded} units).`,
       type: 'blood',
     });
 
     logActivity('Blood Request Created', `${data.bloodGroup} for ${data.hospital}`, 'system');
     return newReq;
+  };
+
+  // Accept blood request (donor agrees to donate)
+  const acceptBloodRequest = (requestId: string, donorPhone: string, donorMessage?: string) => {
+    if (!currentUser) throw new Error('Please sign in to accept this blood donation request.');
+    const target = bloodRequests.find(r => r.id === requestId);
+    if (!target) throw new Error('Blood request not found.');
+
+    const updatedReqs = bloodRequests.map(r => {
+      if (r.id === requestId) {
+        return {
+          ...r,
+          status: 'Accepted' as const,
+          acceptedById: currentUser.id,
+          acceptedByName: currentUser.name,
+          acceptedByPhone: donorPhone || currentUser.phone || '',
+          acceptedAt: new Date().toISOString(),
+          donorMessage: donorMessage || 'I am ready to donate blood for this patient.',
+        };
+      }
+      return r;
+    });
+
+    setBloodRequests(updatedReqs);
+
+    addNotification({
+      title: 'Donor Accepted Your Blood Request! 🩸',
+      message: `${currentUser.name} has volunteered to donate ${target.bloodGroup} for ${target.hospital}! Contact: ${donorPhone || currentUser.phone || 'Available in app'}`,
+      type: 'blood',
+      userId: target.requesterId,
+    });
+
+    logActivity('Blood Request Accepted', `${currentUser.name} volunteered for ${target.hospital}`, 'user');
+  };
+
+  // Fulfill Blood Request (requester marks fulfilled)
+  const fulfillBloodRequest = (requestId: string) => {
+    const updated = bloodRequests.map(r => r.id === requestId ? { ...r, status: 'Fulfilled' as const } : r);
+    setBloodRequests(updated);
+    logActivity('Blood Request Fulfilled', `Request ${requestId} marked completed`, 'user');
+  };
+
+  // Delete Blood Request
+  const deleteBloodRequest = (requestId: string) => {
+    const updated = bloodRequests.filter(r => r.id !== requestId);
+    setBloodRequests(updated);
+    logActivity('Blood Request Removed', `Request ${requestId} deleted by user`, 'user');
+  };
+
+  // Register or Update as Blood Donor
+  const registerAsDonor = (data: {
+    bloodGroup: BloodGroup;
+    location: string;
+    phone: string;
+    notes?: string;
+  }) => {
+    if (!currentUser) throw new Error('Please sign in to register as a donor.');
+
+    const existingIndex = donors.findIndex(d => d.userId === currentUser.id || d.email === currentUser.email);
+
+    if (existingIndex >= 0) {
+      const updated = [...donors];
+      updated[existingIndex] = {
+        ...updated[existingIndex],
+        bloodGroup: data.bloodGroup,
+        location: data.location,
+        phone: data.phone,
+        notes: data.notes,
+        isAvailable: true,
+      };
+      setDonors(updated);
+      logActivity('Donor Profile Updated', `${currentUser.name} (${data.bloodGroup})`, 'user');
+      return updated[existingIndex];
+    } else {
+      const newDonor: BloodDonor = {
+        id: `donor-${Date.now()}`,
+        userId: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        phone: data.phone,
+        avatar: currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+        bloodGroup: data.bloodGroup,
+        location: data.location,
+        isAvailable: true,
+        lastDonationDate: new Date().toISOString().split('T')[0],
+        notes: data.notes,
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      setDonors([newDonor, ...donors]);
+      logActivity('Donor Registered', `${currentUser.name} (${data.bloodGroup})`, 'user');
+      return newDonor;
+    }
+  };
+
+  // Toggle Donor Availability
+  const toggleDonorAvailability = (donorId: string) => {
+    const updated = donors.map(d => d.id === donorId ? { ...d, isAvailable: !d.isAvailable } : d);
+    setDonors(updated);
+  };
+
+  // Delete Donor Profile
+  const deleteDonor = (donorId: string) => {
+    const updated = donors.filter(d => d.id !== donorId);
+    setDonors(updated);
+    logActivity('Donor Profile Removed', `Donor ID ${donorId}`, 'user');
+  };
+
+  // Send Direct Request to Donor
+  const sendDonorDirectRequest = (data: {
+    donorId: string;
+    donorName: string;
+    donorUserId?: string;
+    hospital: string;
+    location: string;
+    bloodGroup: BloodGroup;
+    unitsNeeded: number;
+    dateNeeded: string;
+    requesterPhone: string;
+    notes?: string;
+  }) => {
+    if (!currentUser) throw new Error('Please sign in to send a blood request to a donor.');
+
+    const newReq: DonorDirectRequest = {
+      id: `dreq-direct-${Date.now()}`,
+      donorId: data.donorId,
+      donorUserId: data.donorUserId,
+      donorName: data.donorName,
+      requesterId: currentUser.id,
+      requesterName: currentUser.name,
+      requesterPhone: data.requesterPhone,
+      hospital: data.hospital,
+      location: data.location,
+      bloodGroup: data.bloodGroup,
+      unitsNeeded: data.unitsNeeded,
+      dateNeeded: data.dateNeeded,
+      notes: data.notes,
+      status: 'Pending',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+
+    setDonorRequests([newReq, ...donorRequests]);
+
+    addNotification({
+      title: 'Direct Blood Donation Request Received! 🩸',
+      message: `${currentUser.name} has requested blood (${data.bloodGroup}) for ${data.hospital}.`,
+      type: 'blood',
+      userId: data.donorUserId,
+    });
+
+    logActivity('Direct Donor Request Sent', `${currentUser.name} requested ${data.donorName}`, 'user');
+    return newReq;
+  };
+
+  // Respond to Direct Donor Request
+  const respondToDonorRequest = (requestId: string, status: 'Accepted' | 'Declined') => {
+    const target = donorRequests.find(r => r.id === requestId);
+    const updated = donorRequests.map(r => r.id === requestId ? { ...r, status } : r);
+    setDonorRequests(updated);
+
+    if (target) {
+      addNotification({
+        title: status === 'Accepted' ? 'Donor Accepted Your Request! 🎉' : 'Donor Is Unavailable',
+        message: status === 'Accepted'
+          ? `${target.donorName} accepted your blood request for ${target.hospital}! Contact: ${currentUser?.phone || 'In app'}`
+          : `${target.donorName} is unable to donate blood at this time.`,
+        type: 'blood',
+        userId: target.requesterId,
+      });
+    }
+
+    logActivity('Direct Donor Request Response', `${status} for request ${requestId}`, 'user');
   };
 
   // Product demand request
@@ -898,6 +1082,16 @@ function useMediStockStoreInternal() {
     verifyOrganization,
     registerOrganization,
     createBloodRequest,
+    acceptBloodRequest,
+    fulfillBloodRequest,
+    deleteBloodRequest,
+    registerAsDonor,
+    toggleDonorAvailability,
+    deleteDonor,
+    donorRequests,
+    setDonorRequests,
+    sendDonorDirectRequest,
+    respondToDonorRequest,
     submitProductDemand,
     getDynamicOrgStats,
     dynamicAdminStats,
