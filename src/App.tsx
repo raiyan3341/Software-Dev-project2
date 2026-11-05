@@ -10,6 +10,7 @@ import { OrganizationDashboardPage } from './components/organization/Organizatio
 import { AdminDashboardPage } from './components/admin/AdminDashboardPage';
 import { OwnerDashboardPage } from './components/owner/OwnerDashboardPage';
 import { AboutPage, ContactPage } from './components/common/InformationalPages';
+import { HowItWorksPage } from './components/common/HowItWorksPage';
 import { CartDrawer } from './components/common/CartDrawer';
 import { LoginModal } from './components/common/LoginModal';
 import { ProductDetailModal } from './components/common/ProductDetailModal';
@@ -18,10 +19,49 @@ import { AccessRestricted } from './components/common/AccessRestricted';
 import { Product } from './types';
 import { useMediStockStore } from './data/store';
 
+const VALID_VIEWS = [
+  'home',
+  'products',
+  'register-org',
+  'user-dashboard',
+  'blood',
+  'org-dashboard',
+  'admin-dashboard',
+  'owner-dashboard',
+  'how-it-works',
+  'about',
+  'contact',
+];
+
+const getInitialView = (): string => {
+  try {
+    // 1. Check URL hash first (e.g. #products, #blood, #about, #how-it-works)
+    const hash = window.location.hash.replace(/^#\/?/, '').trim();
+    if (hash && VALID_VIEWS.includes(hash)) {
+      return hash;
+    }
+
+    // 2. Check localStorage
+    const saved = localStorage.getItem('medistock_current_view');
+    if (saved && VALID_VIEWS.includes(saved)) {
+      return saved;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return 'home';
+};
+
 export default function App() {
   const { currentUser, activeRole } = useMediStockStore();
-  const [currentView, setCurrentView] = useState<string>('home');
-  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(undefined);
+  const [currentView, setCurrentView] = useState<string>(getInitialView);
+  const [categoryFilter, setCategoryFilter] = useState<string | undefined>(() => {
+    try {
+      return localStorage.getItem('medistock_category_filter') || undefined;
+    } catch (e) {
+      return undefined;
+    }
+  });
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
@@ -30,16 +70,53 @@ export default function App() {
   // Auto-detect return from Google OAuth
   React.useEffect(() => {
     if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
-      setCurrentView('user-dashboard');
+      handleNavigate('user-dashboard');
       setTimeout(() => {
-        window.history.replaceState(null, '', window.location.pathname);
+        window.history.replaceState(null, '', window.location.pathname + '#user-dashboard');
       }, 500);
     }
   }, []);
 
+  // Listen to browser Back / Forward buttons and Hash changes
+  React.useEffect(() => {
+    // Set initial hash if not set
+    const currentHash = window.location.hash.replace(/^#\/?/, '').trim();
+    if (!currentHash && currentView) {
+      window.location.hash = currentView;
+    }
+
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, '').trim();
+      if (hash && VALID_VIEWS.includes(hash) && hash !== currentView) {
+        setCurrentView(hash);
+        try {
+          localStorage.setItem('medistock_current_view', hash);
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [currentView]);
+
   const handleNavigate = (view: string, category?: string) => {
     setCurrentView(view);
     setCategoryFilter(category);
+    try {
+      localStorage.setItem('medistock_current_view', view);
+      if (category) {
+        localStorage.setItem('medistock_category_filter', category);
+      } else {
+        localStorage.removeItem('medistock_category_filter');
+      }
+      if (window.location.hash !== `#${view}`) {
+        window.location.hash = view;
+      }
+    } catch (e) {
+      // ignore
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -152,7 +229,14 @@ export default function App() {
         )}
 
         {/* Informative Pages */}
-        {(currentView === 'about' || currentView === 'how-it-works') && (
+        {currentView === 'how-it-works' && (
+          <HowItWorksPage
+            onNavigate={handleNavigate}
+            onOpenLogin={() => setIsLoginOpen(true)}
+          />
+        )}
+
+        {currentView === 'about' && (
           <AboutPage
             onNavigate={handleNavigate}
           />
