@@ -52,28 +52,30 @@ export const RestockWorkflowSection: React.FC<RestockWorkflowSectionProps> = ({ 
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 relative">
           {steps.map((item, idx) => {
             const Icon = item.icon;
             return (
               <div 
                 key={item.step}
-                className="relative bg-slate-50 rounded-2xl p-6 border border-slate-200/80 hover:border-teal-500 transition-all hover:shadow-md flex flex-col group"
+                className="relative bg-slate-50 rounded-xl sm:rounded-2xl p-3.5 sm:p-6 border border-slate-200/80 hover:border-teal-500 transition-all hover:shadow-md flex flex-col justify-between group"
               >
-                <div className="flex items-center justify-between mb-5">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${item.color} group-hover:scale-110 transition-transform`}>
-                    <Icon className="w-6 h-6" />
+                <div>
+                  <div className="flex items-center justify-between mb-3 sm:mb-5">
+                    <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center border ${item.color} group-hover:scale-110 transition-transform`}>
+                      <Icon className="w-4 h-4 sm:w-6 sm:h-6" />
+                    </div>
+                    <span className="text-lg sm:text-2xl font-black text-slate-300 font-mono">
+                      {item.step}
+                    </span>
                   </div>
-                  <span className="text-2xl font-black text-slate-300 font-mono">
-                    {item.step}
-                  </span>
+                  <h3 className="text-xs sm:text-lg font-bold text-slate-900 group-hover:text-teal-700 transition-colors leading-tight">
+                    {item.title}
+                  </h3>
+                  <p className="text-[11px] sm:text-sm text-slate-600 mt-1 sm:mt-2 leading-relaxed">
+                    {item.desc}
+                  </p>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 group-hover:text-teal-700 transition-colors">
-                  {item.title}
-                </h3>
-                <p className="text-sm text-slate-600 mt-2 leading-relaxed">
-                  {item.desc}
-                </p>
               </div>
             );
           })}

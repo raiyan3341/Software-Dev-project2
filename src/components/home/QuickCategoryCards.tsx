@@ -56,26 +56,26 @@ export const QuickCategoryCards: React.FC<QuickCategoryCardsProps> = ({
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 sm:-mt-8 relative z-20">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-4">
         {cards.map((card) => {
           const Icon = card.icon;
           return (
             <div
               key={card.id}
               onClick={card.action}
-              className={`bg-white rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer group hover:-translate-y-1 ${
+              className={`bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer group hover:-translate-y-1 ${
                 card.isSpecial ? 'hover:border-rose-300' : 'hover:border-teal-400'
               }`}
             >
-              <div className="flex flex-col items-start gap-3">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.iconBg} group-hover:scale-110 transition-transform`}>
-                  <Icon className="w-6 h-6" />
+              <div className="flex flex-col items-start gap-2 sm:gap-3">
+                <div className={`w-9 h-9 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center ${card.iconBg} group-hover:scale-110 transition-transform`}>
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm sm:text-base group-hover:text-teal-700 transition-colors">
+                  <h3 className="font-bold text-slate-900 text-xs sm:text-base group-hover:text-teal-700 transition-colors leading-tight">
                     {card.title}
                   </h3>
-                  <p className="text-xs text-slate-500 mt-0.5 leading-snug">
+                  <p className="text-[10px] sm:text-xs text-slate-500 mt-0.5 leading-snug line-clamp-1">
                     {card.subtitle}
                   </p>
                 </div>

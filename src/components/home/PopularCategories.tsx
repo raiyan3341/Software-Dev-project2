@@ -55,19 +55,19 @@ export const PopularCategories: React.FC<PopularCategoriesProps> = ({
         </div>
 
         {/* 8 Category Icon Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-8 gap-2 sm:gap-4">
           {categories.map((cat) => {
             const Icon = cat.icon;
             return (
               <button
                 key={cat.slug}
                 onClick={() => onSelectCategory(cat.slug)}
-                className="flex flex-col items-center justify-center p-4 rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-sm hover:shadow-md transition-all group hover:-translate-y-1"
+                className="flex flex-col items-center justify-center p-2.5 sm:p-4 rounded-xl sm:rounded-2xl bg-white border border-slate-200 hover:border-teal-400 shadow-xs hover:shadow-md transition-all group hover:-translate-y-1 cursor-pointer"
               >
-                <div className={`w-14 h-14 rounded-full flex items-center justify-center mb-3 transition-transform group-hover:scale-110 ${cat.color}`}>
-                  <Icon className="w-6 h-6 stroke-[2.2]" />
+                <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-full flex items-center justify-center mb-1.5 sm:mb-3 transition-transform group-hover:scale-110 ${cat.color}`}>
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-slate-800 text-center leading-snug group-hover:text-teal-700">
+                <span className="text-[10px] sm:text-xs font-semibold text-slate-800 text-center leading-tight group-hover:text-teal-700">
                   {cat.name}
                 </span>
               </button>

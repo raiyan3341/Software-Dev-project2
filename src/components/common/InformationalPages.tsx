@@ -136,34 +136,34 @@ export const AboutPage: React.FC<InfoPageProps> = ({ onNavigate }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-                <ShieldCheck className="w-6 h-6" />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">Verified Authenticity</h4>
+              <h4 className="font-bold text-slate-900 text-sm sm:text-base">Verified Authenticity</h4>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Every pharmaceutical batch is sourced directly from licensed national manufacturers (Square, Beximco, Incepta, Renata, ACME, Eskayef) with verified batch records.
+                Every pharmaceutical batch is sourced directly from licensed national manufacturers with verified batch records.
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold">
-                <Truck className="w-6 h-6" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold">
+                <Truck className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">Cold-Chain Assurance</h4>
+              <h4 className="font-bold text-slate-900 text-sm sm:text-base">Cold-Chain Assurance</h4>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Insulated thermal packaging with ice packs and calibrated temperature sensors to guarantee biologic potency of vaccines, insulins, and sensitive serums.
+                Insulated thermal packaging with ice packs and calibrated temperature sensors to guarantee biologic potency.
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
-                <Heart className="w-6 h-6" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
+                <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">Humanitarian Blood Coordination</h4>
+              <h4 className="font-bold text-slate-900 text-sm sm:text-base">Humanitarian Blood Network</h4>
               <p className="text-xs text-slate-500 leading-relaxed">
-                Free community-driven blood network connecting verified volunteer donors with hospitalized attendants across all 8 administrative divisions.
+                Free community-driven blood network connecting verified volunteer donors with hospitalized attendants.
               </p>
             </div>
           </div>
@@ -183,43 +183,43 @@ export const AboutPage: React.FC<InfoPageProps> = ({ onNavigate }) => {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-            <div className="p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
-                <Crown className="w-4 h-4 text-amber-600" />
-                <span>Owner & Super Admin</span>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 pt-2">
+            <div className="p-3.5 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-amber-800 font-bold text-xs sm:text-sm">
+                <Crown className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="truncate">Super Admin</span>
               </div>
-              <p className="text-xs text-slate-600">
-                Platform-wide governance, macro financial revenue, universal user moderation, and 1-click database controls.
+              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed">
+                Platform governance, macro financial revenue, universal user moderation, and 1-click database controls.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-purple-50/70 border border-purple-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-purple-800 font-bold text-sm">
-                <ShieldCheck className="w-4 h-4 text-purple-600" />
-                <span>Admin Operations Desk</span>
+            <div className="p-3.5 sm:p-5 rounded-2xl bg-purple-50/70 border border-purple-200/80 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-purple-800 font-bold text-xs sm:text-sm">
+                <ShieldCheck className="w-4 h-4 text-purple-600 shrink-0" />
+                <span className="truncate">Admin Operations</span>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed">
                 Hospital/Pharmacy license approvals, batch updates, inventory dispatch, and demand request reviews.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-blue-800 font-bold text-sm">
-                <Building2 className="w-4 h-4 text-blue-600" />
-                <span>Hospital & Pharmacy</span>
+            <div className="p-3.5 sm:p-5 rounded-2xl bg-blue-50/70 border border-blue-200/80 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-blue-800 font-bold text-xs sm:text-sm">
+                <Building2 className="w-4 h-4 text-blue-600 shrink-0" />
+                <span className="truncate">Hospitals & Clinics</span>
               </div>
-              <p className="text-xs text-slate-600">
-                Wholesale institutional catalog ordering, printable tax invoices, delivery challans, and custom product demands.
+              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed">
+                Wholesale institutional catalog ordering, printable tax invoices, delivery challans, and custom demands.
               </p>
             </div>
 
-            <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2">
-              <div className="flex items-center gap-2 text-emerald-800 font-bold text-sm">
-                <Users className="w-4 h-4 text-emerald-600" />
-                <span>Normal Users & Donors</span>
+            <div className="p-3.5 sm:p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-1.5 sm:space-y-2">
+              <div className="flex items-center gap-1.5 sm:gap-2 text-emerald-800 font-bold text-xs sm:text-sm">
+                <Users className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="truncate">Users & Donors</span>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-[11px] sm:text-xs text-slate-600 leading-relaxed">
                 Personal genuine health orders, live status tracking, emergency blood requests, and volunteer donor profiles.
               </p>
             </div>

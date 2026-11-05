@@ -277,21 +277,21 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
               </div>
 
               {/* 3 Quick Action Tiles matching Project.png Screen 3 */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-3 gap-2 sm:gap-6">
                 
                 {/* 1. Browse Products */}
                 <div
                   onClick={() => onNavigate('products')}
-                  className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group flex items-start gap-4"
+                  className="bg-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-emerald-300 transition-all cursor-pointer group flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-4"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <ShoppingBag className="w-6 h-6" />
+                  <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <ShoppingBag className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base group-hover:text-emerald-700 transition-colors">
+                    <h3 className="font-bold text-slate-900 text-xs sm:text-base group-hover:text-emerald-700 transition-colors leading-tight">
                       Browse Products
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="hidden sm:block text-xs text-slate-500 mt-1">
                       Shop essential healthcare products & supplies
                     </p>
                   </div>
@@ -300,16 +300,16 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
                 {/* 2. Blood Donation */}
                 <div
                   onClick={() => onNavigate('blood')}
-                  className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer group flex items-start gap-4"
+                  className="bg-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-rose-300 transition-all cursor-pointer group flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-4"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <HeartHandshake className="w-6 h-6" />
+                  <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <HeartHandshake className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base group-hover:text-rose-700 transition-colors">
+                    <h3 className="font-bold text-slate-900 text-xs sm:text-base group-hover:text-rose-700 transition-colors leading-tight">
                       Blood Donation
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="hidden sm:block text-xs text-slate-500 mt-1">
                       Donate blood or request emergency donors
                     </p>
                   </div>
@@ -318,16 +318,16 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
                 {/* 3. My Orders / Tracking */}
                 <div
                   onClick={() => onNavigate('products')}
-                  className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-teal-300 transition-all cursor-pointer group flex items-start gap-4"
+                  className="bg-white rounded-2xl sm:rounded-3xl p-2.5 sm:p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-teal-300 transition-all cursor-pointer group flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-1.5 sm:gap-4"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <Package className="w-6 h-6" />
+                  <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                    <Package className="w-4 h-4 sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900 text-base group-hover:text-teal-700 transition-colors">
+                    <h3 className="font-bold text-slate-900 text-xs sm:text-base group-hover:text-teal-700 transition-colors leading-tight">
                       Supply Catalog
                     </h3>
-                    <p className="text-xs text-slate-500 mt-1">
+                    <p className="hidden sm:block text-xs text-slate-500 mt-1">
                       Browse 42 verified medicines across 14 categories
                     </p>
                   </div>
@@ -349,12 +349,12 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 sm:gap-4">
                   {recentProducts.map((prod) => (
                     <div
                       key={prod.id}
                       onClick={() => onOpenProductModal(prod)}
-                      className="bg-slate-50/60 rounded-2xl p-3 border border-slate-100 hover:border-teal-200 hover:bg-white hover:shadow-sm transition-all cursor-pointer group flex flex-col justify-between"
+                      className="bg-slate-50/60 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-slate-100 hover:border-teal-200 hover:bg-white hover:shadow-xs transition-all cursor-pointer group flex flex-col justify-between"
                     >
                       <div className="aspect-square rounded-xl overflow-hidden bg-white mb-2 border border-slate-100">
                         <img

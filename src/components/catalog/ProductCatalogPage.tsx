@@ -250,7 +250,7 @@ export const ProductCatalogPage: React.FC<ProductCatalogPageProps> = ({
                 </div>
 
                 {/* 4 Featured Products Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-5">
                   {featuredRowProducts.map((prod) => (
                     <ProductCard
                       key={`featured-${prod.id}`}
@@ -320,7 +320,7 @@ export const ProductCatalogPage: React.FC<ProductCatalogPageProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4 sm:gap-5">
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-3 2xl:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-5">
                   {filteredProducts.map((prod) => (
                     <ProductCard
                       key={prod.id}

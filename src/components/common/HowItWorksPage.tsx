@@ -338,35 +338,35 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ onNavigate, onOp
           </div>
 
           {/* 4 Step Visual Roadmap */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 relative">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6 relative">
             {currentWorkflow.steps.map((step, idx) => {
               const StepIcon = step.icon;
               return (
                 <div
                   key={idx}
-                  className="bg-slate-50 rounded-3xl p-6 border border-slate-200/80 hover:border-teal-500 transition-all hover:shadow-md flex flex-col justify-between space-y-4 group"
+                  className="bg-slate-50 rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-slate-200/80 hover:border-teal-500 transition-all hover:shadow-md flex flex-col justify-between space-y-2 sm:space-y-4 group"
                 >
-                  <div className="space-y-3">
+                  <div className="space-y-1.5 sm:space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="w-10 h-10 rounded-2xl bg-teal-600 text-white font-black text-sm flex items-center justify-center shadow-md shadow-teal-600/20">
+                      <span className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-2xl bg-teal-600 text-white font-black text-xs sm:text-sm flex items-center justify-center shadow-md shadow-teal-600/20">
                         {step.stepNum}
                       </span>
-                      <div className="w-10 h-10 rounded-2xl bg-white border border-slate-200 text-teal-700 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <StepIcon className="w-5 h-5" />
+                      <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-2xl bg-white border border-slate-200 text-teal-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <StepIcon className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
                       </div>
                     </div>
 
-                    <h3 className="font-extrabold text-slate-900 text-base leading-snug">
+                    <h3 className="font-extrabold text-slate-900 text-xs sm:text-base leading-tight sm:leading-snug">
                       {step.title}
                     </h3>
 
-                    <p className="text-xs text-slate-600 leading-relaxed">{step.desc}</p>
+                    <p className="text-[10px] sm:text-xs text-slate-600 leading-relaxed line-clamp-3 sm:line-clamp-none">{step.desc}</p>
                   </div>
 
-                  <div className="pt-3 border-t border-slate-200/60">
-                    <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-xl border border-teal-100">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
-                      <span>{step.highlight}</span>
+                  <div className="pt-2 sm:pt-3 border-t border-slate-200/60">
+                    <span className="inline-flex items-center gap-1 text-[9px] sm:text-[11px] font-bold text-teal-700 bg-teal-50 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-lg sm:rounded-xl border border-teal-100">
+                      <CheckCircle2 className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-teal-600 shrink-0" />
+                      <span className="truncate">{step.highlight}</span>
                     </span>
                   </div>
                 </div>
@@ -386,44 +386,44 @@ export const HowItWorksPage: React.FC<HowItWorksPageProps> = ({ onNavigate, onOp
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-                <ShieldCheck className="w-6 h-6" />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-6">
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">100% Genuine DGHS Drugs</h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Direct manufacturer-backed inventory with verified lot numbers and verifiable expiry dates.
+              <h4 className="font-bold text-slate-900 text-xs sm:text-base leading-tight">100% Genuine DGHS Drugs</h4>
+              <p className="text-[10px] sm:text-xs text-slate-500 leading-relaxed">
+                Direct manufacturer-backed inventory with verified lot numbers and expiry dates.
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold">
-                <Truck className="w-6 h-6" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-cyan-50 text-cyan-700 flex items-center justify-center font-bold">
+                <Truck className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">Cold-Chain Temperature Assurance</h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
+              <h4 className="font-bold text-slate-900 text-xs sm:text-base leading-tight">Cold-Chain Assurance</h4>
+              <p className="text-[10px] sm:text-xs text-slate-500 leading-relaxed">
                 Insulated logistics preserving biologic integrity at 2°C–8°C from warehouse to clinical dispensary.
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
-                <FileText className="w-6 h-6" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold">
+                <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">Printable Tax Invoices</h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Instant computerized VAT invoices, official challans, and real-time ledger accounting for audits.
+              <h4 className="font-bold text-slate-900 text-xs sm:text-base leading-tight">Printable Tax Invoices</h4>
+              <p className="text-[10px] sm:text-xs text-slate-500 leading-relaxed">
+                Instant computerized VAT invoices, official challans, and real-time ledger accounting.
               </p>
             </div>
 
-            <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-3">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
-                <Heart className="w-6 h-6" />
+            <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-6 border border-slate-200/90 shadow-xs space-y-2 sm:space-y-3">
+              <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
+                <Heart className="w-5 h-5 sm:w-6 sm:h-6" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">Zero-Fee Blood Network</h4>
-              <p className="text-xs text-slate-500 leading-relaxed">
-                Empowering patients and voluntary blood donors to save lives without brokers or commercial exploitation.
+              <h4 className="font-bold text-slate-900 text-xs sm:text-base leading-tight">Zero-Fee Blood Network</h4>
+              <p className="text-[10px] sm:text-xs text-slate-500 leading-relaxed">
+                Empowering patients and voluntary blood donors to save lives without brokers or fees.
               </p>
             </div>
           </div>
