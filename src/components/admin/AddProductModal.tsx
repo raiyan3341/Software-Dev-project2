@@ -9,7 +9,7 @@ interface AddProductModalProps {
 }
 
 export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClose }) => {
-  const { products, setProducts, categories, logActivity } = useMediStockStore();
+  const { addProduct, categories } = useMediStockStore();
 
   const [name, setName] = useState('');
   const [sku, setSku] = useState('');
@@ -29,8 +29,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClos
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const newProduct: Product = {
-      id: `prod-${Date.now()}`,
+    addProduct({
       name,
       sku: sku || `MED-${Math.floor(1000 + Math.random() * 9000)}`,
       category,
@@ -45,10 +44,7 @@ export const AddProductModal: React.FC<AddProductModalProps> = ({ isOpen, onClos
       expiryDate,
       description: description || 'Genuine DGHS certified pharmaceutical formulation.',
       image,
-    };
-
-    setProducts([newProduct, ...products]);
-    logActivity('Added New Product to Catalog', `${name} (${newProduct.sku})`, 'product');
+    });
     onClose();
   };
 

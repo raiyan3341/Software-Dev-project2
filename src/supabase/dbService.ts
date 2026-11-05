@@ -262,12 +262,54 @@ export const dbService = {
     }
   },
 
+  // Save or Update Product in Supabase
+  async saveProduct(product: Product): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(product.id);
+      const payload: any = {
+        name: product.name,
+        sku: product.sku,
+        category_name: product.category,
+        manufacturer: product.manufacturer,
+        unit: product.unit,
+        price: product.price,
+        stock: product.stock,
+        min_stock_threshold: product.minStockThreshold,
+        is_prescription_required: product.isPrescriptionRequired,
+        is_active: product.isActive,
+        batch_number: product.batchNumber,
+        expiry_date: product.expiryDate,
+        description: product.description,
+        image_url: product.image,
+      };
+      if (isUUID) {
+        payload.id = product.id;
+      }
+      const { error } = await supabase.from('products').upsert(payload, { onConflict: 'sku' });
+      if (error) {
+        console.warn('Supabase saveProduct notice (using persistent local storage fallback):', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('Supabase saveProduct exception:', err);
+      return false;
+    }
+  },
+
   // Delete Product from Supabase
   async deleteProduct(id: string): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const { error } = await supabase.from('products').delete().eq('id', id);
-      return !error;
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      if (isUUID) {
+        const { error } = await supabase.from('products').delete().eq('id', id);
+        return !error;
+      } else {
+        const { error } = await supabase.from('products').delete().eq('sku', id);
+        return !error;
+      }
     } catch {
       return false;
     }

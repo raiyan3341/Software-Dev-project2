@@ -34,7 +34,8 @@ import {
 const STORAGE_KEYS = {
   USERS: 'medistock_users_v6',
   CURRENT_USER: 'medistock_current_user_v6',
-  PRODUCTS: 'medistock_products_v5',
+  PRODUCTS: 'medistock_products_v6',
+  DELETED_PRODUCTS: 'medistock_deleted_products_v6',
   CATEGORIES: 'medistock_categories_v5',
   ORGANIZATIONS: 'medistock_orgs_clean',
   ORDERS: 'medistock_orders_clean',
@@ -102,9 +103,28 @@ function useMediStockStoreInternal() {
   );
 
   // 2. Core Data
-  const [products, setProductsState] = useState<Product[]>(() =>
-    loadFromStorage<Product[]>(STORAGE_KEYS.PRODUCTS, INITIAL_PRODUCTS)
+  const [deletedProductIds, setDeletedProductIdsState] = useState<string[]>(() =>
+    loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, [])
   );
+
+  const setDeletedProductIds = (ids: string[]) => {
+    setDeletedProductIdsState(ids);
+    saveToStorage(STORAGE_KEYS.DELETED_PRODUCTS, ids);
+  };
+
+  const [products, setProductsState] = useState<Product[]>(() => {
+    const deleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, []);
+    const saved = loadFromStorage<Product[] | null>(STORAGE_KEYS.PRODUCTS, null)
+      || loadFromStorage<Product[] | null>('medistock_products_v5', null);
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      const filtered = saved.filter(p => !deleted.includes(p.id) && !deleted.includes(p.sku));
+      saveToStorage(STORAGE_KEYS.PRODUCTS, filtered);
+      return filtered;
+    }
+    const initial = INITIAL_PRODUCTS.filter(p => !deleted.includes(p.id) && !deleted.includes(p.sku));
+    saveToStorage(STORAGE_KEYS.PRODUCTS, initial);
+    return initial;
+  });
 
   const [categories, setCategoriesState] = useState<Category[]>(() =>
     loadFromStorage<Category[]>(STORAGE_KEYS.CATEGORIES, INITIAL_CATEGORIES)
@@ -259,17 +279,27 @@ function useMediStockStoreInternal() {
       });
 
       dbService.fetchProducts().then(prods => {
-        if (prods && prods.length >= 25) {
-          setProducts(prods);
-        } else if (prods && prods.length > 0) {
-          // Merge so all 14 categories have 3 products
-          const merged = [...prods];
-          INITIAL_PRODUCTS.forEach(initP => {
-            if (!merged.some(p => p.sku === initP.sku || p.name.toLowerCase() === initP.name.toLowerCase())) {
-              merged.push(initP);
+        if (prods && prods.length > 0) {
+          setProductsState(currentProducts => {
+            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, []);
+            const existingIds = new Set(currentProducts.map(p => p.id));
+            const existingSkus = new Set(currentProducts.map(p => p.sku.toLowerCase()));
+            
+            // Only merge truly new products from Supabase that are not already in currentProducts and not in currentDeleted
+            const newFromDb = prods.filter(p => 
+              !currentDeleted.includes(p.id) && 
+              !currentDeleted.includes(p.sku) &&
+              !existingIds.has(p.id) && 
+              !existingSkus.has(p.sku.toLowerCase())
+            );
+            
+            if (newFromDb.length > 0) {
+              const merged = [...currentProducts, ...newFromDb];
+              saveToStorage(STORAGE_KEYS.PRODUCTS, merged);
+              return merged;
             }
+            return currentProducts;
           });
-          setProducts(merged);
         }
       });
       dbService.fetchOrganizations().then(orgs => {
@@ -1006,11 +1036,48 @@ function useMediStockStoreInternal() {
     logActivity('All Direct Donor Requests Cleared', 'Admin/Owner Action', 'system');
   };
 
+  // Add Product (Admin & Owner)
+  const addProduct = (productData: Omit<Product, 'id'> & { id?: string }) => {
+    const id = productData.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prod-${Date.now()}`);
+    const newProduct: Product = {
+      ...productData,
+      id,
+    };
+
+    // Remove from deleted list if it was previously marked deleted
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, []);
+    const updatedDeleted = currentDeleted.filter(did => did !== id && did !== newProduct.sku);
+    setDeletedProductIds(updatedDeleted);
+
+    const updated = [newProduct, ...products.filter(p => p.id !== id && p.sku !== newProduct.sku)];
+    setProducts(updated);
+
+    if (isSupabaseConfigured) {
+      dbService.saveProduct(newProduct);
+    }
+
+    addNotification({
+      title: 'New Product Added',
+      message: `${newProduct.name} (${newProduct.sku}) added to catalog.`,
+      type: 'stock',
+    });
+
+    logActivity('Added New Product to Catalog', `${newProduct.name} (${newProduct.sku})`, 'product');
+    return newProduct;
+  };
+
   // Delete Product (Admin & Owner)
   const deleteProduct = (productId: string) => {
     const target = products.find(p => p.id === productId);
     const updated = products.filter(p => p.id !== productId);
     setProducts(updated);
+
+    // Save to deletedProductIds so it can NEVER be re-seeded or resurrected on refresh
+    const targetSku = target?.sku;
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, []);
+    const newDeleted = [...currentDeleted, productId];
+    if (targetSku) newDeleted.push(targetSku);
+    setDeletedProductIds(Array.from(new Set(newDeleted)));
 
     // Also remove from active cart if it was in cart
     removeFromCart(productId);
@@ -1205,6 +1272,7 @@ function useMediStockStoreInternal() {
     deleteDonorRequest,
     clearAllDonorRequests,
     submitProductDemand,
+    addProduct,
     deleteProduct,
     deleteUser,
     getDynamicOrgStats,
