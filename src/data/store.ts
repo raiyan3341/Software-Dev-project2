@@ -840,7 +840,27 @@ function useMediStockStoreInternal() {
   const deleteBloodRequest = (requestId: string) => {
     const updated = bloodRequests.filter(r => r.id !== requestId);
     setBloodRequests(updated);
-    logActivity('Blood Request Removed', `Request ${requestId} deleted by user`, 'user');
+    if (isSupabaseConfigured) {
+      dbService.deleteBloodRequest(requestId);
+    }
+    logActivity('Blood Request Removed', `Request ${requestId} deleted`, 'user');
+  };
+
+  // Clear All Blood Requests (Admin / Owner 1-Click)
+  const clearAllBloodRequests = () => {
+    setBloodRequests([]);
+    if (isSupabaseConfigured) {
+      dbService.clearAllBloodRequests();
+    }
+    logActivity('All Blood Requests Cleared', 'Admin/Owner 1-Click Action', 'system');
+  };
+
+  // Clear Completed / Fulfilled Blood Requests
+  const clearFulfilledBloodRequests = () => {
+    const updated = bloodRequests.filter(r => r.status !== 'Fulfilled' && r.status !== 'Cancelled');
+    const removedCount = bloodRequests.length - updated.length;
+    setBloodRequests(updated);
+    logActivity('Fulfilled Blood Requests Cleared', `Removed ${removedCount} completed requests`, 'system');
   };
 
   // Register or Update as Blood Donor
@@ -899,6 +919,12 @@ function useMediStockStoreInternal() {
     const updated = donors.filter(d => d.id !== donorId);
     setDonors(updated);
     logActivity('Donor Profile Removed', `Donor ID ${donorId}`, 'user');
+  };
+
+  // Clear All Donors (Admin / Owner 1-Click Action)
+  const clearAllDonors = () => {
+    setDonors([]);
+    logActivity('All Donors Cleared', 'Admin/Owner Action', 'system');
   };
 
   // Send Direct Request to Donor
@@ -965,6 +991,19 @@ function useMediStockStoreInternal() {
     }
 
     logActivity('Direct Donor Request Response', `${status} for request ${requestId}`, 'user');
+  };
+
+  // Delete Direct Donor Request
+  const deleteDonorRequest = (requestId: string) => {
+    const updated = donorRequests.filter(r => r.id !== requestId);
+    setDonorRequests(updated);
+    logActivity('Donor Request Removed', `Request ID ${requestId}`, 'user');
+  };
+
+  // Clear All Direct Donor Requests (Admin / Owner Action)
+  const clearAllDonorRequests = () => {
+    setDonorRequests([]);
+    logActivity('All Direct Donor Requests Cleared', 'Admin/Owner Action', 'system');
   };
 
   // Product demand request
@@ -1085,13 +1124,18 @@ function useMediStockStoreInternal() {
     acceptBloodRequest,
     fulfillBloodRequest,
     deleteBloodRequest,
+    clearAllBloodRequests,
+    clearFulfilledBloodRequests,
     registerAsDonor,
     toggleDonorAvailability,
     deleteDonor,
+    clearAllDonors,
     donorRequests,
     setDonorRequests,
     sendDonorDirectRequest,
     respondToDonorRequest,
+    deleteDonorRequest,
+    clearAllDonorRequests,
     submitProductDemand,
     getDynamicOrgStats,
     dynamicAdminStats,

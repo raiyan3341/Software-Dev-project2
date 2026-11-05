@@ -240,6 +240,28 @@ export const dbService = {
     }
   },
 
+  // Delete Blood Request from Supabase
+  async deleteBloodRequest(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('blood_requests').delete().eq('id', id);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
+  // Clear All Blood Requests from Supabase
+  async clearAllBloodRequests(): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('blood_requests').delete().neq('id', '');
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   // 7. Update User Profile in Supabase
   async updateUserProfile(user: UserProfile): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;

@@ -23,6 +23,8 @@ import {
   User,
   Users,
   Activity,
+  Database,
+  ShieldAlert,
 } from 'lucide-react';
 import { useMediStockStore } from '../../data/store';
 import { BloodGroup, BloodDonor, BloodRequest, DonorDirectRequest } from '../../types';
@@ -44,12 +46,34 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
     bloodRequests,
     donorRequests,
     currentUser,
+    activeRole,
     fulfillBloodRequest,
     deleteBloodRequest,
+    clearAllBloodRequests,
+    clearFulfilledBloodRequests,
     toggleDonorAvailability,
     deleteDonor,
+    clearAllDonors,
     respondToDonorRequest,
+    deleteDonorRequest,
+    clearAllDonorRequests,
   } = useMediStockStore();
+
+  const isAdminOrOwner =
+    activeRole === 'admin' ||
+    activeRole === 'owner' ||
+    currentUser?.role === 'admin' ||
+    currentUser?.role === 'owner';
+
+  const canDeleteRequest = (req: BloodRequest) => {
+    if (isAdminOrOwner) return true;
+    return !!(currentUser && req.requesterId === currentUser.id);
+  };
+
+  const canDeleteDonor = (donor: BloodDonor) => {
+    if (isAdminOrOwner) return true;
+    return !!(currentUser && (donor.userId === currentUser.id || donor.email === currentUser.email));
+  };
 
   // Primary Tabs: 'requests' (Blood Requests), 'donors' (Available Donors), 'my-activity' (My Activity)
   const [activeTab, setActiveTab] = useState<'requests' | 'donors' | 'my-activity'>('requests');
@@ -110,12 +134,18 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
     return donorRequests.filter((r) => r.donorUserId === currentUser.id || r.donorId === myDonorProfile.id);
   }, [donorRequests, currentUser, myDonorProfile]);
 
+  const requestsSentByMe = useMemo(() => {
+    if (!currentUser) return [];
+    return donorRequests.filter((r) => r.requesterId === currentUser.id);
+  }, [donorRequests, currentUser]);
+
   const requestsIAccepted = useMemo(() => {
     if (!currentUser) return [];
     return bloodRequests.filter((r) => r.acceptedById === currentUser.id);
   }, [bloodRequests, currentUser]);
 
-  const totalMyActivityCount = myRequests.length + requestsSentToMe.length + requestsIAccepted.length;
+  const totalMyActivityCount =
+    myRequests.length + requestsSentToMe.length + requestsSentByMe.length + requestsIAccepted.length;
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
@@ -161,6 +191,84 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
             </div>
           </div>
         </div>
+
+        {/* Admin & Owner Rapid Database Management Toolbar */}
+        {isAdminOrOwner && (
+          <div className="bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 rounded-3xl p-5 text-white border border-rose-500/30 shadow-xl space-y-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="p-2.5 rounded-2xl bg-rose-600/30 border border-rose-500/40 text-rose-400">
+                  <Database className="w-5 h-5" />
+                </span>
+                <div>
+                  <h4 className="font-extrabold text-sm sm:text-base flex items-center gap-2">
+                    <span>Admin & Owner Database Control</span>
+                    <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-rose-600 text-white shadow-xs">
+                      {activeRole === 'owner' ? 'Owner Master Access' : 'Admin Privileges'}
+                    </span>
+                  </h4>
+                  <p className="text-xs text-rose-200/80">
+                    Clean obsolete records in 1-click to optimize database storage and keep the community active.
+                  </p>
+                </div>
+              </div>
+
+              <div className="text-xs text-slate-300 font-mono bg-black/40 px-3 py-1.5 rounded-xl border border-white/10 self-start sm:self-auto">
+                Live Records: {bloodRequests.length} requests • {donors.length} donors • {donorRequests.length} direct
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/10">
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete all Fulfilled and Completed blood requests to free database space?')) {
+                    clearFulfilledBloodRequests();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-emerald-600/90 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>1-Click: Clear Fulfilled Requests</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete ALL blood requests? This action cannot be undone.')) {
+                    clearAllBloodRequests();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-rose-600/90 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>1-Click: Clear All Requests ({bloodRequests.length})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to delete ALL registered donors from the database?')) {
+                    clearAllDonors();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-rose-300 hover:text-white border border-rose-500/30 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <UserX className="w-3.5 h-3.5" />
+                <span>1-Click: Clear All Donors ({donors.length})</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  if (window.confirm('Delete ALL direct donor requests history?')) {
+                    clearAllDonorRequests();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-white/10 font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>1-Click: Clear Direct Requests ({donorRequests.length})</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Navigation Tabs Bar */}
         <div className="flex flex-wrap items-center justify-between gap-4 bg-white rounded-2xl p-2 border border-slate-200/80 shadow-xs">
@@ -420,9 +528,24 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                       {/* Card Action Buttons */}
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                         {req.status === 'Fulfilled' ? (
-                          <span className="w-full text-center py-2 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs">
-                            Blood Donation Completed ✓
-                          </span>
+                          <div className="w-full flex items-center gap-2">
+                            <span className="flex-1 text-center py-2 rounded-xl bg-slate-100 text-slate-500 font-bold text-xs">
+                              Blood Donation Completed ✓
+                            </span>
+                            {canDeleteRequest(req) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Delete this completed blood request to free database storage?')) {
+                                    deleteBloodRequest(req.id);
+                                  }
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 transition-colors cursor-pointer"
+                                title="Delete Completed Request"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         ) : isMyPost ? (
                           // Owner of the post
                           <div className="w-full flex items-center gap-2">
@@ -433,7 +556,11 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                               Mark Fulfilled ✓
                             </button>
                             <button
-                              onClick={() => deleteBloodRequest(req.id)}
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to delete your blood request?')) {
+                                  deleteBloodRequest(req.id);
+                                }
+                              }}
                               className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 transition-colors cursor-pointer"
                               title="Delete Post"
                             >
@@ -441,9 +568,24 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                             </button>
                           </div>
                         ) : req.status === 'Accepted' ? (
-                          <span className="w-full text-center py-2 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs">
-                            Donor Confirmed (In Progress)
-                          </span>
+                          <div className="w-full flex items-center gap-2">
+                            <span className="flex-1 text-center py-2 rounded-xl bg-emerald-100 text-emerald-800 font-bold text-xs">
+                              Donor Confirmed (In Progress)
+                            </span>
+                            {canDeleteRequest(req) && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Delete blood request for ${req.hospital}?`)) {
+                                    deleteBloodRequest(req.id);
+                                  }
+                                }}
+                                className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 transition-colors cursor-pointer"
+                                title="Delete Request"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
                         ) : (
                           // Another user viewing the open post
                           <div className="w-full flex items-center gap-2">
@@ -461,6 +603,19 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                             >
                               <Phone className="w-4 h-4" />
                             </a>
+                            {isAdminOrOwner && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Admin/Owner action: Delete blood request for ${req.hospital}?`)) {
+                                    deleteBloodRequest(req.id);
+                                  }
+                                }}
+                                className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
+                                title="Admin Delete Request"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -600,7 +755,11 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                               Edit Profile
                             </button>
                             <button
-                              onClick={() => deleteDonor(donor.id)}
+                              onClick={() => {
+                                if (window.confirm('Are you sure you want to remove your donor profile from the directory?')) {
+                                  deleteDonor(donor.id);
+                                }
+                              }}
                               className="p-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-500 hover:text-rose-700 transition-colors cursor-pointer"
                               title="Delete Donor Profile"
                             >
@@ -623,6 +782,19 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                             >
                               <Phone className="w-4 h-4" />
                             </a>
+                            {isAdminOrOwner && (
+                              <button
+                                onClick={() => {
+                                  if (window.confirm(`Admin/Owner action: Delete donor profile for "${donor.name}"?`)) {
+                                    deleteDonor(donor.id);
+                                  }
+                                }}
+                                className="p-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 transition-colors cursor-pointer"
+                                title="Admin Delete Donor Profile"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -722,8 +894,12 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                               )}
 
                               <button
-                                onClick={() => deleteBloodRequest(req.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer"
+                                onClick={() => {
+                                  if (window.confirm('Are you sure you want to delete your blood request?')) {
+                                    deleteBloodRequest(req.id);
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
                                 title="Delete Post"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -816,6 +992,18 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                                     {req.status === 'Accepted' ? 'You Accepted ✓' : 'Declined'}
                                   </span>
                                 )}
+
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm('Delete this direct request record?')) {
+                                      deleteDonorRequest(req.id);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                  title="Delete Direct Request Record"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -825,7 +1013,70 @@ export const BloodDonationPage: React.FC<BloodDonationPageProps> = ({ onNavigate
                   </div>
                 )}
 
-                {/* 3. Requests I Accepted to Donate */}
+                {/* 3. Direct Requests Sent by Me to Donors */}
+                <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-4">
+                  <div>
+                    <h4 className="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
+                      <Send className="w-5 h-5 text-teal-600" />
+                      <span>Direct Requests Sent by Me ({requestsSentByMe.length})</span>
+                    </h4>
+                    <p className="text-xs text-slate-500">Voluntary donors you directly contacted and their response status</p>
+                  </div>
+
+                  {requestsSentByMe.length === 0 ? (
+                    <div className="py-8 text-center text-slate-400 text-xs">
+                      You have not sent direct requests to any donors yet.
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-slate-100">
+                      {requestsSentByMe.map((req) => (
+                        <div key={req.id} className="py-4 space-y-2.5">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div>
+                              <p className="font-bold text-slate-900 text-sm">
+                                Requested Donor: <strong className="text-teal-700">{req.donorName}</strong> ({req.bloodGroup} • {req.unitsNeeded} Bag(s))
+                              </p>
+                              <span className="text-xs text-slate-500">
+                                Hospital: {req.hospital} • Needed by: {req.dateNeeded}
+                              </span>
+                              {req.notes && <p className="text-xs text-slate-600 italic mt-1">"{req.notes}"</p>}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                                req.status === 'Accepted'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : req.status === 'Declined'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-amber-100 text-amber-800'
+                              }`}>
+                                {req.status === 'Accepted'
+                                  ? 'Donor Accepted ✓'
+                                  : req.status === 'Declined'
+                                  ? 'Donor Declined'
+                                  : 'Awaiting Donor Response'}
+                              </span>
+
+                              <button
+                                onClick={() => {
+                                  if (window.confirm('Delete this request record to free space?')) {
+                                    deleteDonorRequest(req.id);
+                                  }
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Delete Request Record"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 4. Requests I Accepted to Donate */}
                 <div className="bg-white rounded-3xl p-6 border border-slate-200/90 shadow-xs space-y-4">
                   <div>
                     <h4 className="font-extrabold text-slate-900 text-base sm:text-lg flex items-center gap-2">
