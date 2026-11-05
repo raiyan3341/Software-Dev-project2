@@ -19,7 +19,7 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
   const { acceptBloodRequest, currentUser } = useMediStockStore();
 
   const [phone, setPhone] = useState(currentUser?.phone || '');
-  const [message, setMessage] = useState('আমি এই রোগীর জন্য রক্ত দিতে আগ্রহী। খুব শীঘ্রই যোগাযোগ করছি।');
+  const [message, setMessage] = useState('I am ready to volunteer and donate blood for this patient. I will be in touch shortly.');
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -34,11 +34,11 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
   const handleConfirm = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
-      setError('রক্তদান করতে অনুগ্রহ করে আগে লগইন করুন।');
+      setError('Please sign in to volunteer for this blood donation request.');
       return;
     }
     if (!phone.trim()) {
-      setError('রোগীর স্বজনের সাথে যোগাযোগের জন্য আপনার ফোন নম্বর দিন।');
+      setError('Please provide your contact phone number so the patient attendant can call you.');
       return;
     }
 
@@ -51,7 +51,7 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
         onClose();
       }, 2000);
     } catch (err: any) {
-      setError(err.message || 'একটি ত্রুটি ঘটেছে।');
+      setError(err.message || 'An error occurred while confirming your commitment.');
     }
   };
 
@@ -74,9 +74,9 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
             <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto mb-2 shadow-xs">
               <Heart className="w-7 h-7 fill-rose-600" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">রক্তদান করতে সম্মতি জানান</h3>
+            <h3 className="text-xl font-bold text-slate-900">Volunteer to Donate Blood</h3>
             <p className="text-xs text-slate-500 mt-1">
-              আপনার একটি সম্মতি রোগীর জীবন বাঁচাতে পারে। আপনার যোগাযোগের তথ্য রোগীর স্বজনকে জানানো হবে।
+              Your commitment can save a life. Your contact details will be shared directly with the patient's attendant.
             </p>
           </div>
 
@@ -85,7 +85,7 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
             <div className="flex items-center justify-between">
               <span className="px-3 py-1 rounded-full bg-rose-100 text-rose-800 font-extrabold text-sm flex items-center gap-1.5">
                 <Droplet className="w-4 h-4 fill-rose-600" />
-                {request.bloodGroup} ({request.unitsNeeded} ব্যাগ)
+                {request.bloodGroup} ({request.unitsNeeded} {request.unitsNeeded === 1 ? 'Bag' : 'Bags'})
               </span>
               <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-bold uppercase text-[10px]">
                 {request.urgency}
@@ -94,7 +94,7 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
 
             <div className="pt-1">
               <p className="font-bold text-slate-900 text-sm">{request.hospital}</p>
-              <p className="text-slate-500">{request.location} • প্রয়োজন: {request.dateNeeded}</p>
+              <p className="text-slate-500">{request.location} • Needed: {request.dateNeeded}</p>
             </div>
 
             {request.notes && (
@@ -104,8 +104,8 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
             )}
 
             <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-200 flex items-center justify-between">
-              <span>পোস্টকারী: <strong className="text-slate-700">{request.requesterName}</strong></span>
-              <span>রোগীর নম্বর: <strong className="text-slate-700">{request.contactPhone}</strong></span>
+              <span>Requester: <strong className="text-slate-700">{request.requesterName}</strong></span>
+              <span>Attendant Phone: <strong className="text-slate-700">{request.contactPhone}</strong></span>
             </div>
           </div>
 
@@ -119,15 +119,15 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
           {success ? (
             <div className="py-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200 p-4">
               <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-              <h4 className="font-bold text-emerald-900 text-base">সম্মতি গ্রহণ সম্পন্ন হয়েছে!</h4>
+              <h4 className="font-bold text-emerald-900 text-base">Commitment Successfully Registered!</h4>
               <p className="text-xs text-emerald-700">
-                রোগীর স্বজনকে আপনার নাম ও ফোন নম্বর জানিয়ে দেওয়া হয়েছে। তারা আপনার সাথে দ্রুত ফোনে যোগাযোগ করবেন।
+                The patient attendant has received your name and phone number. They will contact you shortly to coordinate arrival.
               </p>
             </div>
           ) : !currentUser ? (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-3">
               <p className="text-xs text-amber-900 font-semibold">
-                রক্তদান রিকুয়েস্ট গ্রহণ করতে আপনাকে একটি অ্যাকাউন্টে লগইন থাকতে হবে।
+                You must be signed in to volunteer for a blood donation request.
               </p>
               <button
                 type="button"
@@ -137,38 +137,40 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
                 }}
                 className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors cursor-pointer"
               >
-                লগইন / সাইন আপ করুন
+                Sign In / Register
               </button>
             </div>
           ) : (
             <form onSubmit={handleConfirm} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  আপনার মোবাইল নম্বর *
+                  Your Contact Phone Number *
                 </label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 017XXXXXXXX"
+                    placeholder="+880 17XXXXXXXX"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20"
                   />
                   <Phone className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 </div>
-                <p className="text-[10px] text-slate-400 mt-1">রোগীর পরিবার এই নম্বরে আপনার সাথে কথা বলে সুবিধাজনক সময় ঠিক করবেন।</p>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  The attendant will call this phone number to coordinate arrival time and clinical procedures.
+                </p>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  রোগীর পরিবারের প্রতি আপনার মেসেজ (ঐচ্ছিক)
+                  Message for Patient / Attendant (Optional)
                 </label>
                 <textarea
                   rows={2}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  placeholder="যেমন: আমি ২ ঘণ্টার মধ্যে রক্ত দিতে আসছি"
+                  placeholder="e.g. I am leaving now and will reach the hospital within 2 hours."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-none focus:bg-white"
                 />
               </div>
@@ -179,7 +181,7 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
                   onClick={onClose}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                 >
-                  বাতিল
+                  Cancel
                 </button>
 
                 <button
@@ -187,7 +189,7 @@ export const AcceptBloodRequestModal: React.FC<AcceptBloodRequestModalProps> = (
                   className="flex-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>আমি রক্ত দিতে রাজি (Accept)</span>
+                  <span>Confirm & Volunteer to Donate</span>
                 </button>
               </div>
             </form>

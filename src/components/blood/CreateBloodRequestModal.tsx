@@ -40,17 +40,17 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!hospital.trim()) {
-      setError('হাসপাতাল বা ক্লিনিকের নাম দিন।');
+      setError('Please specify the hospital or medical facility name.');
       return;
     }
     if (!contactPhone.trim()) {
-      setError('জরুরি যোগাযোগের মোবাইল নম্বর দিন।');
+      setError('Please provide an emergency contact phone number.');
       return;
     }
 
     try {
       createBloodRequest({
-        requesterName: requesterName.trim() || currentUser?.name || 'স্বজন',
+        requesterName: requesterName.trim() || currentUser?.name || 'Patient Attendant',
         bloodGroup,
         hospital: hospital.trim(),
         location,
@@ -68,7 +68,7 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
         onClose();
       }, 1800);
     } catch (err: any) {
-      setError(err.message || 'পোস্ট করতে সমস্যা হয়েছে।');
+      setError(err.message || 'Failed to broadcast blood request.');
     }
   };
 
@@ -90,15 +90,15 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
             <div className="w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center mx-auto mb-2 shadow-xs">
               <Droplet className="w-7 h-7 fill-rose-600" />
             </div>
-            <h3 className="text-xl font-bold text-slate-900">জরুরি রক্তের জন্য পোস্ট করুন</h3>
+            <h3 className="text-xl font-bold text-slate-900">Post Emergency Blood Request</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              পোস্টটি সকল রক্তদাতা ও ব্যবহারকারীর লাইভ ফিডে তাৎক্ষণিকভাবে প্রদর্শিত হবে
+              Broadcast your clinical requirement live across our voluntary donor network
             </p>
           </div>
 
           {!currentUser && (
             <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-900 flex items-center justify-between">
-              <span>লগইন থাকলে আপনার পোস্টে কেউ রাজি হলে সাথে সাথে নোটিফিকেশন পাবেন।</span>
+              <span>Sign in to track real-time responses and call donors directly.</span>
               <button
                 type="button"
                 onClick={() => {
@@ -107,7 +107,7 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 }}
                 className="font-bold underline text-amber-800 ml-2 cursor-pointer"
               >
-                লগইন
+                Sign In
               </button>
             </div>
           )}
@@ -123,20 +123,20 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
                 <Heart className="w-6 h-6 fill-emerald-600" />
               </div>
-              <h4 className="font-bold text-slate-900 text-base">রক্তের রিকুয়েস্ট পোস্ট হয়েছে!</h4>
+              <h4 className="font-bold text-slate-900 text-base">Blood Request Broadcasted!</h4>
               <p className="text-xs text-slate-600">
-                {location} এবং আশেপাশের রক্তদাতাদের কাছে আপনার পোস্ট পৌঁছে দেওয়া হয়েছে।
+                Matching voluntary blood donors in {location} and nearby areas have been notified.
               </p>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">রক্তের গ্রুপ *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Blood Group *</label>
                   <select
                     value={bloodGroup}
                     onChange={(e: any) => setBloodGroup(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-rose-700 outline-none focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-rose-700 outline-none focus:bg-white cursor-pointer"
                   >
                     {(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as BloodGroup[]).map((bg) => (
                       <option key={bg} value={bg}>{bg}</option>
@@ -145,7 +145,7 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">কত ব্যাগ প্রয়োজন</label>
+                  <label className="block font-bold text-slate-700 mb-1">Units (Bags) Needed *</label>
                   <input
                     type="number"
                     min="1"
@@ -157,11 +157,11 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">হাসপাতাল / মেডিকেল সেন্টার *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Hospital / Medical Center *</label>
                   <input
                     type="text"
                     required
-                    placeholder="যেমন: ঢাকা মেডিকেল কলেজ হাসপাতাল"
+                    placeholder="e.g. Dhaka Medical College Hospital, Ward 5"
                     value={hospital}
                     onChange={(e) => setHospital(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
@@ -169,11 +169,11 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">শহর / বিভাগ *</label>
+                  <label className="block font-bold text-slate-700 mb-1">City / Division *</label>
                   <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none focus:bg-white cursor-pointer"
                   >
                     <option value="Dhaka">Dhaka</option>
                     <option value="Chittagong">Chittagong</option>
@@ -188,24 +188,24 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">জরুরিতা (Urgency)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Urgency Level</label>
                   <select
                     value={urgency}
                     onChange={(e: any) => setUrgency(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-amber-700 outline-none focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-amber-700 outline-none focus:bg-white cursor-pointer"
                   >
-                    <option value="Critical">Critical (জরুরি / ইমার্জেন্সি)</option>
-                    <option value="Urgent">Urgent (আজকের মধ্যেই)</option>
-                    <option value="Normal">Normal (স্বাভাবিক)</option>
+                    <option value="Critical">Critical (Immediate Emergency)</option>
+                    <option value="Urgent">Urgent (Within 24 Hours)</option>
+                    <option value="Normal">Normal (Scheduled Care)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">যোগাযোগের মোবাইল নম্বর *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Emergency Contact Phone *</label>
                   <input
                     type="text"
                     required
-                    placeholder="017XXXXXXXX"
+                    placeholder="+880 17XXXXXXXX"
                     value={contactPhone}
                     onChange={(e) => setContactPhone(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20"
@@ -213,7 +213,7 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">প্রয়োজনের তারিখ</label>
+                  <label className="block font-bold text-slate-700 mb-1">Date Needed</label>
                   <input
                     type="date"
                     value={dateNeeded}
@@ -223,10 +223,10 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                 </div>
 
                 <div className="col-span-2">
-                  <label className="block font-bold text-slate-700 mb-1">রোগীর অবস্থা / নোট (ঐচ্ছিক)</label>
+                  <label className="block font-bold text-slate-700 mb-1">Clinical Notes / Surgery Reason (Optional)</label>
                   <textarea
                     rows={2}
-                    placeholder="যেমন: রোগীর সিজারিয়ান অপারেশন চলছে, দ্রুত বি পজিটিভ রক্ত প্রয়োজন।"
+                    placeholder="e.g. Patient undergoing emergency surgery, B+ blood required urgently."
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
@@ -240,7 +240,7 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                   onClick={onClose}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                 >
-                  বাতিল
+                  Cancel
                 </button>
 
                 <button
@@ -248,7 +248,7 @@ export const CreateBloodRequestModal: React.FC<CreateBloodRequestModalProps> = (
                   className="flex-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Send className="w-4 h-4" />
-                  <span>রক্তের রিকুয়েস্ট পোস্ট করুন</span>
+                  <span>Broadcast Blood Request</span>
                 </button>
               </div>
             </form>

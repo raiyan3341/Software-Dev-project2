@@ -35,11 +35,11 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
-      setError('রক্তের অনুরোধ পাঠাতে অনুগ্রহ করে আগে লগইন করুন।');
+      setError('Please sign in to send a direct blood request to this donor.');
       return;
     }
     if (!patientContact.trim()) {
-      setError('জরুরি যোগাযোগের জন্য আপনার মোবাইল নম্বর দিন।');
+      setError('Please provide your emergency contact phone number.');
       return;
     }
 
@@ -63,7 +63,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
         onClose();
       }, 2000);
     } catch (err: any) {
-      setError(err.message || 'অনুরোধ পাঠাতে সমস্যা হয়েছে।');
+      setError(err.message || 'Failed to dispatch blood request.');
     }
   };
 
@@ -95,7 +95,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
                   {donor.bloodGroup}
                 </span>
               </div>
-              <p className="text-xs text-slate-500">{donor.location} Division • রক্তদাতা</p>
+              <p className="text-xs text-slate-500">{donor.location} Division • Voluntary Blood Donor</p>
             </div>
           </div>
 
@@ -111,15 +111,15 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
               <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto mb-2">
                 <Check className="w-6 h-6 stroke-[3]" />
               </div>
-              <h4 className="font-bold text-emerald-900 text-base">অনুরোধ পাঠানো হয়েছে!</h4>
+              <h4 className="font-bold text-emerald-900 text-base">Request Dispatched!</h4>
               <p className="text-xs text-emerald-700">
-                {donor.name}-এর কাছে আপনার রক্তের অনুরোধ পৌঁছে গেছে। রক্তদাতা দ্রুত আপনার সাথে ফোনে যোগাযোগ করবেন।
+                {donor.name} has received an alert with your hospital and contact details. They will call you directly.
               </p>
             </div>
           ) : !currentUser ? (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-3">
               <p className="text-xs text-amber-900 font-semibold">
-                রক্তের অনুরোধ পাঠাতে আপনাকে একটি অ্যাকাউন্টে লগইন থাকতে হবে।
+                You must be signed in to send an emergency request to this donor.
               </p>
               <button
                 type="button"
@@ -129,19 +129,19 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
                 }}
                 className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors cursor-pointer"
               >
-                লগইন / সাইন আপ করুন
+                Sign In / Register
               </button>
             </div>
           ) : (
             <form onSubmit={handleSend} className="space-y-3 text-xs">
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  হাসপাতাল / ক্লিনিকের নাম *
+                  Hospital / Admission Ward *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="যেমন: ঢাকা মেডিকেল কলেজ হাসপাতাল, ওয়ার্ড ৩"
+                  placeholder="e.g. Dhaka Medical College Hospital, ICU Bed 4"
                   value={patientHospital}
                   onChange={(e) => setPatientHospital(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
@@ -150,7 +150,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">কত ব্যাগ প্রয়োজন</label>
+                  <label className="block font-bold text-slate-700 mb-1">Units (Bags) Needed</label>
                   <input
                     type="number"
                     min="1"
@@ -162,7 +162,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
                 </div>
 
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">প্রয়োজনের তারিখ</label>
+                  <label className="block font-bold text-slate-700 mb-1">Date Needed</label>
                   <input
                     type="date"
                     value={dateNeeded}
@@ -174,12 +174,12 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  আপনার জরুরি মোবাইল নম্বর *
+                  Emergency Attendant Mobile Phone *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="017XXXXXXXX"
+                  placeholder="+880 17XXXXXXXX"
                   value={patientContact}
                   onChange={(e) => setPatientContact(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-rose-500/20"
@@ -188,11 +188,11 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
 
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  রোগীর অবস্থা / মেসেজ (ঐচ্ছিক)
+                  Patient Condition / Message (Optional)
                 </label>
                 <textarea
                   rows={2}
-                  placeholder="জরুরি সার্জারি, রোগীর বিস্তারিত..."
+                  placeholder="Patient diagnosis, urgent surgery timing, blood requisition notes..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
@@ -202,7 +202,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-500 flex items-start gap-2">
                 <ShieldCheck className="w-4 h-4 text-teal-600 shrink-0 mt-0.5" />
                 <span>
-                  অনুরোধ পাঠানোর সাথে সাথে রক্তদাতার কাছে নোটিফিকেশন পৌঁছে যাবে যাতে তিনি দ্রুত কল করতে পারেন।
+                  <strong>Donor Notification:</strong> Sending this request sends an instant alert to the donor's dashboard so they can call you immediately.
                 </span>
               </div>
 
@@ -212,7 +212,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
                   onClick={onClose}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                 >
-                  বাতিল
+                  Cancel
                 </button>
 
                 <button
@@ -220,7 +220,7 @@ export const RequestDonorModal: React.FC<RequestDonorModalProps> = ({ donor, onC
                   className="flex-2 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <Send className="w-3.5 h-3.5" />
-                  <span>রক্তের অনুরোধ পাঠান</span>
+                  <span>Send Blood Request</span>
                 </button>
               </div>
             </form>

@@ -41,11 +41,11 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) {
-      setError('রক্তদাতা হিসেবে রেজিস্টার করতে অনুগ্রহ করে আগে লগইন করুন।');
+      setError('Please sign in to register as a voluntary blood donor.');
       return;
     }
     if (!phone.trim()) {
-      setError('অনুগ্রহ করে আপনার যোগাযোগের মোবাইল নম্বর দিন।');
+      setError('Please provide a contact phone number.');
       return;
     }
 
@@ -63,7 +63,7 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
         onClose();
       }, 1800);
     } catch (err: any) {
-      setError(err.message || 'একটি ত্রুটি ঘটেছে।');
+      setError(err.message || 'Failed to save donor profile.');
     }
   };
 
@@ -87,10 +87,10 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
               <UserCheck className="w-7 h-7" />
             </div>
             <h3 className="text-xl font-bold text-slate-900">
-              {userExistingDonor ? 'রক্তদাতা প্রোফাইল আপডেট' : 'রক্তদাতা হিসেবে পোস্ট করুন'}
+              {userExistingDonor ? 'Update Blood Donor Profile' : 'Register as Voluntary Donor'}
             </h3>
             <p className="text-xs text-slate-500 mt-1">
-              জরুরি মুহূর্তে রোগীদের জীবন বাঁচাতে আপনার রক্তের তথ্য যুক্ত করে প্রস্তুত থাকুন।
+              List yourself as an active voluntary blood donor to help hospitalized patients in emergency need.
             </p>
           </div>
 
@@ -104,15 +104,15 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
           {success ? (
             <div className="py-6 text-center space-y-2 bg-emerald-50 rounded-2xl border border-emerald-200 p-4">
               <CheckCircle2 className="w-12 h-12 text-emerald-600 mx-auto" />
-              <h4 className="font-bold text-emerald-900 text-base">রক্তদাতা তালিকা সফলভাবে যুক্ত হয়েছে!</h4>
+              <h4 className="font-bold text-emerald-900 text-base">Donor Profile Successfully Saved!</h4>
               <p className="text-xs text-emerald-700">
-                আপনার রক্তের গ্রুপ ({bloodGroup}) এবং লোকেশন ({location}) সক্রিয় রক্তদাতাদের তালিকায় দৃশ্যমান হবে।
+                Your blood group ({bloodGroup}) and location ({location}) are now live on the Available Donors feed.
               </p>
             </div>
           ) : !currentUser ? (
             <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-center space-y-3">
               <p className="text-xs text-amber-900 font-semibold">
-                রক্তদাতা হিসেবে পোস্ট করতে আপনাকে একটি অ্যাকাউন্টে লগইন থাকতে হবে।
+                You must be signed in to register as an active voluntary donor.
               </p>
               <button
                 type="button"
@@ -122,7 +122,7 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
                 }}
                 className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs transition-colors cursor-pointer"
               >
-                লগইন / সাইন আপ করুন
+                Sign In / Register
               </button>
             </div>
           ) : (
@@ -130,11 +130,11 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
               <div className="grid grid-cols-2 gap-3">
                 {/* Blood Group */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">রক্তের গ্রুপ *</label>
+                  <label className="block font-bold text-slate-700 mb-1">Blood Group *</label>
                   <select
                     value={bloodGroup}
                     onChange={(e: any) => setBloodGroup(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-rose-700 outline-none focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-rose-700 outline-none focus:bg-white cursor-pointer"
                   >
                     {(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as BloodGroup[]).map((bg) => (
                       <option key={bg} value={bg}>{bg}</option>
@@ -144,11 +144,11 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
 
                 {/* City */}
                 <div>
-                  <label className="block font-bold text-slate-700 mb-1">শহর / বিভাগ *</label>
+                  <label className="block font-bold text-slate-700 mb-1">City / Division *</label>
                   <select
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none focus:bg-white"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none focus:bg-white cursor-pointer"
                   >
                     <option value="Dhaka">Dhaka</option>
                     <option value="Chittagong">Chittagong</option>
@@ -165,12 +165,12 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
 
               {/* Mobile Phone */}
               <div>
-                <label className="block font-bold text-slate-700 mb-1">যোগাযোগের মোবাইল নম্বর *</label>
+                <label className="block font-bold text-slate-700 mb-1">Contact Mobile Number *</label>
                 <div className="relative">
                   <input
                     type="text"
                     required
-                    placeholder="017XXXXXXXX"
+                    placeholder="+880 17XXXXXXXX"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-teal-500/20"
@@ -182,13 +182,13 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
               {/* Availability Note */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1">
-                  বিশেষ দ্রষ্টব্য / উপলব্ধতা (ঐচ্ছিক)
+                  Availability Note / Proximity (Optional)
                 </label>
                 <textarea
                   rows={2}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="যেমন: ছুটির দিনে বা জরুরি প্রয়োজনে মিরপুর এলাকায় সহজেই যেতে পারব।"
+                  placeholder="e.g. Available on weekends or near Dhanmondi & Mirpur hospital zones."
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:bg-white"
                 />
               </div>
@@ -199,7 +199,7 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
                   onClick={onClose}
                   className="flex-1 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors cursor-pointer"
                 >
-                  বাতিল
+                  Cancel
                 </button>
 
                 <button
@@ -207,7 +207,7 @@ export const RegisterDonorModal: React.FC<RegisterDonorModalProps> = ({
                   className="flex-2 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md shadow-teal-600/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
                   <UserCheck className="w-4 h-4" />
-                  <span>{userExistingDonor ? 'প্রোফাইল আপডেট করুন' : 'রক্তদাতা হিসেবে সংরক্ষণ করুন'}</span>
+                  <span>{userExistingDonor ? 'Update Donor Profile' : 'Save as Active Donor'}</span>
                 </button>
               </div>
             </form>
