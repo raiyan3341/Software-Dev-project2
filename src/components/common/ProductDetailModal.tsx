@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, ShoppingCart, ShieldCheck, AlertCircle, Calendar, Hash, Building2, Check } from 'lucide-react';
+import { X, ShoppingCart, ShieldCheck, AlertCircle, Calendar, Hash, Building2, Check, Trash2 } from 'lucide-react';
 import { Product } from '../../types';
 import { useMediStockStore } from '../../data/store';
 
@@ -9,7 +9,7 @@ interface ProductDetailModalProps {
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product, onClose }) => {
-  const { addToCart } = useMediStockStore();
+  const { addToCart, activeRole, deleteProduct } = useMediStockStore();
   const [quantity, setQuantity] = useState(1);
   const [addedNotice, setAddedNotice] = useState(false);
 
@@ -158,6 +158,28 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({ product,
               {product.description}
             </p>
           </div>
+
+          {/* Admin / Owner Actions */}
+          {(activeRole === 'admin' || activeRole === 'owner') && (
+            <div className="mt-6 pt-4 border-t border-rose-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-rose-50/60 p-4 rounded-2xl border border-rose-200">
+              <div>
+                <p className="text-xs font-bold text-rose-900">Administrative Product Governance</p>
+                <p className="text-[11px] text-rose-600">Completely remove this SKU and medicine from catalog and inventory</p>
+              </div>
+              <button
+                onClick={() => {
+                  if (window.confirm(`Are you sure you want to permanently delete "${product.name}" (SKU: ${product.sku})? This cannot be undone.`)) {
+                    deleteProduct(product.id);
+                    onClose();
+                  }
+                }}
+                className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all shrink-0"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete Product</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -262,6 +262,28 @@ export const dbService = {
     }
   },
 
+  // Delete Product from Supabase
+  async deleteProduct(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
+  // Delete User from Supabase
+  async deleteUser(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
   // 7. Update User Profile in Supabase
   async updateUserProfile(user: UserProfile): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;

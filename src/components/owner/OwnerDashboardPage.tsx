@@ -23,6 +23,7 @@ import {
   Eye,
   RefreshCw,
   UserCheck,
+  Trash2,
 } from 'lucide-react';
 import { useMediStockStore } from '../../data/store';
 import { PlatformStatsChart } from './PlatformStatsChart';
@@ -46,6 +47,8 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onNaviga
     dynamicOwnerStats,
     categories,
     logout,
+    deleteProduct,
+    deleteUser,
   } = useMediStockStore();
 
   const [activeTab, setActiveTab] = useState<OwnerTab>('overview');
@@ -643,12 +646,25 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onNaviga
                             </td>
                             <td className="p-3 text-right">
                               {u.role !== 'owner' ? (
-                                <button
-                                  onClick={() => setIsManageAdminsOpen(true)}
-                                  className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-800 font-bold text-[11px] transition-colors"
-                                >
-                                  Manage Role
-                                </button>
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    onClick={() => setIsManageAdminsOpen(true)}
+                                    className="px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-amber-100 text-slate-700 hover:text-amber-800 font-bold text-[11px] transition-colors"
+                                  >
+                                    Manage Role
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      if (window.confirm(`Are you sure you want to permanently delete user "${u.name}" (${u.email})?`)) {
+                                        deleteUser(u.id);
+                                      }
+                                    }}
+                                    className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors inline-flex items-center"
+                                    title="Delete User"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               ) : (
                                 <span className="text-[11px] font-semibold text-amber-700">Root Owner</span>
                               )}
@@ -835,12 +851,25 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onNaviga
 
                       <div>
                         {admin.role !== 'owner' ? (
-                          <button
-                            onClick={() => setIsManageAdminsOpen(true)}
-                            className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-amber-400 text-slate-700 font-bold text-xs shadow-2xs"
-                          >
-                            Manage
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setIsManageAdminsOpen(true)}
+                              className="px-3 py-1.5 rounded-xl bg-white border border-slate-200 hover:border-amber-400 text-slate-700 font-bold text-xs shadow-2xs"
+                            >
+                              Manage
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to delete admin "${admin.name}" (${admin.email})?`)) {
+                                  deleteUser(admin.id);
+                                }
+                              }}
+                              className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors"
+                              title="Delete Admin Account"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         ) : (
                           <span className="text-xs font-bold text-amber-700 px-3 py-1 bg-amber-100/60 rounded-xl">
                             Master Owner
@@ -908,6 +937,7 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onNaviga
                       <th className="p-3">Unit</th>
                       <th className="p-3 text-right">Price (৳)</th>
                       <th className="p-3 text-right">Stock Level</th>
+                      <th className="p-3 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -951,6 +981,20 @@ export const OwnerDashboardPage: React.FC<OwnerDashboardPageProps> = ({ onNaviga
                             }`}>
                               {p.stock} in stock
                             </span>
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Are you sure you want to permanently delete "${p.name}" (SKU: ${p.sku})?`)) {
+                                  deleteProduct(p.id);
+                                }
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-semibold text-[11px] transition-colors"
+                              title="Delete Product"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Delete</span>
+                            </button>
                           </td>
                         </tr>
                       ))

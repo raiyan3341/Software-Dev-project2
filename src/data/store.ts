@@ -1006,6 +1006,74 @@ function useMediStockStoreInternal() {
     logActivity('All Direct Donor Requests Cleared', 'Admin/Owner Action', 'system');
   };
 
+  // Delete Product (Admin & Owner)
+  const deleteProduct = (productId: string) => {
+    const target = products.find(p => p.id === productId);
+    const updated = products.filter(p => p.id !== productId);
+    setProducts(updated);
+
+    // Also remove from active cart if it was in cart
+    removeFromCart(productId);
+
+    if (isSupabaseConfigured) {
+      dbService.deleteProduct(productId);
+    }
+
+    addNotification({
+      title: 'Product Removed',
+      message: `${target?.name || 'Product'} has been deleted from the catalog.`,
+      type: 'stock',
+    });
+
+    logActivity('Product Deleted', `${target?.name || productId} (${target?.sku || ''})`, 'product');
+  };
+
+  // Delete User Account (Admin & Owner)
+  const deleteUser = (userId: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+
+    // Safety guard: Root platform owner cannot be deleted
+    if (target.role === 'owner') {
+      alert('The root platform owner account cannot be deleted.');
+      return;
+    }
+
+    // Safety guard: Current user cannot delete themselves
+    if (target.id === currentUser?.id) {
+      alert('You cannot delete your own logged-in account.');
+      return;
+    }
+
+    // Remove user
+    const updatedUsers = users.filter(u => u.id !== userId);
+    setUsers(updatedUsers);
+
+    // Also remove any linked blood donor record to prevent orphan data
+    const updatedDonors = donors.filter(d => d.userId !== userId && d.email.toLowerCase() !== target.email.toLowerCase());
+    if (updatedDonors.length !== donors.length) {
+      setDonors(updatedDonors);
+    }
+
+    // Also remove any linked organization if it was an organization user
+    if (target.organizationId) {
+      const updatedOrgs = organizations.filter(o => o.id !== target.organizationId);
+      setOrganizations(updatedOrgs);
+    }
+
+    if (isSupabaseConfigured) {
+      dbService.deleteUser(userId);
+    }
+
+    addNotification({
+      title: 'User Account Deleted',
+      message: `User account for ${target.name} (${target.email}) has been removed.`,
+      type: 'system',
+    });
+
+    logActivity('User Account Removed', `${target.name} (${target.email}) - Role: ${target.role}`, 'system');
+  };
+
   // Product demand request
   const submitProductDemand = (data: {
     orgId: string;
@@ -1137,6 +1205,8 @@ function useMediStockStoreInternal() {
     deleteDonorRequest,
     clearAllDonorRequests,
     submitProductDemand,
+    deleteProduct,
+    deleteUser,
     getDynamicOrgStats,
     dynamicAdminStats,
     dynamicOwnerStats,

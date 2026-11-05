@@ -21,6 +21,7 @@ import {
   Check,
   X,
   Eye,
+  Trash2,
 } from 'lucide-react';
 import { useMediStockStore } from '../../data/store';
 import { Order, OrderStatus, Organization, Product } from '../../types';
@@ -45,9 +46,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
     setDemandRequests,
     logActivity,
     dynamicAdminStats,
+    deleteProduct,
+    deleteUser,
+    users,
   } = useMediStockStore();
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'organizations' | 'products' | 'demand' | 'reports'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'organizations' | 'products' | 'demand' | 'reports' | 'users'>('overview');
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
   const [isAddProductOpen, setIsAddProductOpen] = useState(false);
   const [selectedOrgForVerification, setSelectedOrgForVerification] = useState<Organization | null>(null);
@@ -56,6 +60,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
   // Search & Filter state
   const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [productSearchQuery, setProductSearchQuery] = useState('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
 
   // Pending organizations
   const pendingOrgs = organizations.filter(o => o.verificationStatus === 'Pending');
@@ -221,6 +226,23 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
             >
               <FileBarChart className="w-4 h-4 text-slate-400" />
               <span>Reports</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('users')}
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
+                activeTab === 'users'
+                  ? 'bg-teal-50 text-teal-700 shadow-xs'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4 text-slate-400" />
+                <span>Users</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-bold">
+                {users.length}
+              </span>
             </button>
           </nav>
 
@@ -636,12 +658,24 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                   <h3 className="font-extrabold text-slate-900 text-lg">Central Inventory & Expiry Tracking</h3>
                   <p className="text-xs text-slate-500">Live batch quantities and low stock thresholds</p>
                 </div>
-                <button
-                  onClick={() => setIsAddProductOpen(true)}
-                  className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold"
-                >
-                  + Add New Product
-                </button>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={productSearchQuery}
+                      onChange={(e) => setProductSearchQuery(e.target.value)}
+                      placeholder="Search products..."
+                      className="w-40 sm:w-56 pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none"
+                    />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                  <button
+                    onClick={() => setIsAddProductOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shrink-0"
+                  >
+                    + Add New Product
+                  </button>
+                </div>
               </div>
 
               <div className="overflow-x-auto">
@@ -654,11 +688,14 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                       <th className="p-3">Price (৳)</th>
                       <th className="p-3">Batch & Expiry</th>
                       <th className="p-3">Available Stock</th>
-                      <th className="p-3 text-right">Quick Adjust</th>
+                      <th className="p-3 text-center">Quick Adjust</th>
+                      <th className="p-3 text-right">Delete</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
-                    {products.map((prod) => (
+                    {products
+                      .filter(p => !productSearchQuery.trim() || p.name.toLowerCase().includes(productSearchQuery.toLowerCase()) || p.sku.toLowerCase().includes(productSearchQuery.toLowerCase()))
+                      .map((prod) => (
                       <tr key={prod.id} className="hover:bg-slate-50">
                         <td className="p-3 font-bold text-slate-900">
                           {prod.name}
@@ -678,7 +715,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                             {prod.stock} units
                           </span>
                         </td>
-                        <td className="p-3 text-right">
+                        <td className="p-3 text-center">
                           <div className="inline-flex items-center gap-1">
                             <button
                               onClick={() => handleStockAdjust(prod.id, prod.stock - 50)}
@@ -693,6 +730,19 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                               +100
                             </button>
                           </div>
+                        </td>
+                        <td className="p-3 text-right">
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to permanently delete "${prod.name}" (SKU: ${prod.sku})? This cannot be undone.`)) {
+                                deleteProduct(prod.id);
+                              }
+                            }}
+                            className="p-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 transition-colors inline-flex items-center justify-center"
+                            title="Delete Product"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -786,6 +836,117 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onNaviga
                     ৳ {orders.reduce((sum, o) => sum + o.total, 0).toLocaleString()}
                   </strong>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab Content: Users Management */}
+          {activeTab === 'users' && (
+            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xs p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                    <Users className="w-5 h-5 text-teal-600" />
+                    <span>Registered Platform Accounts</span>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-teal-100 text-teal-800 font-bold">
+                      {users.filter(u => u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || u.email.toLowerCase().includes(userSearchQuery.toLowerCase())).length} Accounts
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Review and remove registered user accounts
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      placeholder="Search users..."
+                      className="w-48 sm:w-64 pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none"
+                    />
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b text-slate-500 uppercase font-bold text-xs">
+                      <th className="p-3">User Profile</th>
+                      <th className="p-3">Email Address</th>
+                      <th className="p-3">Role</th>
+                      <th className="p-3">Status</th>
+                      <th className="p-3">Registered Date</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {users
+                      .filter(u => u.name.toLowerCase().includes(userSearchQuery.toLowerCase()) || u.email.toLowerCase().includes(userSearchQuery.toLowerCase()))
+                      .map((u) => {
+                        const roleBadges = {
+                          owner: 'bg-amber-100 text-amber-800 border-amber-300',
+                          admin: 'bg-purple-100 text-purple-800 border-purple-300',
+                          organization: 'bg-blue-100 text-blue-800 border-blue-300',
+                          normal_user: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                        };
+
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50 transition-colors">
+                            <td className="p-3">
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={u.avatar}
+                                  alt={u.name}
+                                  className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-200"
+                                />
+                                <div>
+                                  <p className="font-bold text-slate-900 leading-tight">{u.name}</p>
+                                  <span className="text-[10px] text-slate-400 font-mono">{u.id}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="p-3 text-slate-600 font-medium">{u.email}</td>
+                            <td className="p-3">
+                              <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${roleBadges[u.role] || 'bg-slate-100'}`}>
+                                {u.role.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                u.status === 'active' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
+                              }`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${u.status === 'active' ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                {u.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-500 font-mono text-[11px]">{u.createdAt}</td>
+                            <td className="p-3 text-right">
+                              {u.role === 'owner' || u.role === 'admin' ? (
+                                <span className="text-[11px] font-semibold text-slate-400 px-2.5 py-1 bg-slate-100 rounded-lg">Protected</span>
+                              ) : (
+                                <button
+                                  onClick={() => {
+                                    if (window.confirm(`Are you sure you want to remove user "${u.name}" (${u.email})?`)) {
+                                      deleteUser(u.id);
+                                    }
+                                  }}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 font-semibold text-xs transition-colors"
+                                  title="Remove User"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Remove</span>
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
