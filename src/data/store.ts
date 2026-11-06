@@ -33,6 +33,7 @@ import {
 
 const STORAGE_KEYS = {
   USERS: 'medistock_users_v6',
+  DELETED_USERS: 'medistock_deleted_users_clean',
   CURRENT_USER: 'medistock_current_user_v6',
   PRODUCTS: 'medistock_products_v6',
   DELETED_PRODUCTS: 'medistock_deleted_products_v6',
@@ -40,7 +41,9 @@ const STORAGE_KEYS = {
   ORGANIZATIONS: 'medistock_orgs_clean',
   ORDERS: 'medistock_orders_clean',
   DONORS: 'medistock_donors_clean',
+  DELETED_DONORS: 'medistock_deleted_donors_clean',
   BLOOD_REQUESTS: 'medistock_blood_reqs_clean',
+  DELETED_BLOOD_REQUESTS: 'medistock_deleted_breqs_clean',
   DONOR_REQUESTS: 'medistock_donor_reqs_clean',
   DEMAND_REQUESTS: 'medistock_demand_reqs_clean',
   ACTIVITY_LOGS: 'medistock_logs_clean',
@@ -49,6 +52,17 @@ const STORAGE_KEYS = {
 };
 
 const INITIAL_NOTIFICATIONS: UserNotification[] = [];
+
+// Automated test record IDs that must never be resurfaced from remote database
+const KNOWN_TEST_BLOOD_REQUEST_IDS = [
+  'c3dd21aa-41ce-42be-8895-fef2573e69db',
+  '6269a926-bf65-4eeb-a612-04dca2c79877',
+  'cb3f18dd-49e0-44a5-8c28-50b1af4849fd',
+  'cf70c4ac-dfe4-4cdf-945b-6e9eb5138676',
+  'ae5a8f8d-d45a-4cfb-81ac-81db97207a9f',
+  '4405435a-e14d-49fd-9a08-df189e5cd010',
+  '22222222-3333-4444-5555-666666666666',
+];
 
 // Auto-clean old cached mock data for testing
 try {
@@ -105,9 +119,27 @@ export const generateUUID = (): string => {
 
 function useMediStockStoreInternal() {
   // 1. Users & Authentication (default guest / logged out if null)
-  const [users, setUsersState] = useState<UserProfile[]>(() =>
-    loadFromStorage<UserProfile[]>(STORAGE_KEYS.USERS, INITIAL_USERS)
+  const [deletedUserIds, setDeletedUserIdsState] = useState<string[]>(() =>
+    loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, [])
   );
+
+  const setDeletedUserIds = (ids: string[]) => {
+    setDeletedUserIdsState(ids);
+    saveToStorage(STORAGE_KEYS.DELETED_USERS, ids);
+  };
+
+  const [users, setUsersState] = useState<UserProfile[]>(() => {
+    const deleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+    const saved = loadFromStorage<UserProfile[] | null>(STORAGE_KEYS.USERS, null);
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      const filtered = saved.filter(u => !deleted.includes(u.id) && !deleted.includes(u.email.toLowerCase()));
+      saveToStorage(STORAGE_KEYS.USERS, filtered);
+      return filtered;
+    }
+    const initial = INITIAL_USERS.filter(u => !deleted.includes(u.id) && !deleted.includes(u.email.toLowerCase()));
+    saveToStorage(STORAGE_KEYS.USERS, initial);
+    return initial;
+  });
 
   const [currentUser, setCurrentUserState] = useState<UserProfile | null>(() =>
     loadFromStorage<UserProfile | null>(STORAGE_KEYS.CURRENT_USER, null)
@@ -149,13 +181,60 @@ function useMediStockStoreInternal() {
     loadFromStorage<Order[]>(STORAGE_KEYS.ORDERS, INITIAL_ORDERS)
   );
 
-  const [donors, setDonorsState] = useState<BloodDonor[]>(() =>
-    loadFromStorage<BloodDonor[]>(STORAGE_KEYS.DONORS, INITIAL_DONORS)
+  const [deletedDonorIds, setDeletedDonorIdsState] = useState<string[]>(() =>
+    loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, [])
   );
 
-  const [bloodRequests, setBloodRequestsState] = useState<BloodRequest[]>(() =>
-    loadFromStorage<BloodRequest[]>(STORAGE_KEYS.BLOOD_REQUESTS, INITIAL_BLOOD_REQUESTS)
-  );
+  const setDeletedDonorIds = (ids: string[]) => {
+    setDeletedDonorIdsState(ids);
+    saveToStorage(STORAGE_KEYS.DELETED_DONORS, ids);
+  };
+
+  const [donors, setDonorsState] = useState<BloodDonor[]>(() => {
+    const deleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
+    const saved = loadFromStorage<BloodDonor[] | null>(STORAGE_KEYS.DONORS, null);
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      const filtered = saved.filter(d => 
+        !deleted.includes(d.id) && 
+        (!d.email || !deleted.includes(d.email.toLowerCase())) && 
+        (!d.phone || !deleted.includes(d.phone))
+      );
+      saveToStorage(STORAGE_KEYS.DONORS, filtered);
+      return filtered;
+    }
+    const initial = INITIAL_DONORS.filter(d => 
+      !deleted.includes(d.id) && 
+      (!d.email || !deleted.includes(d.email.toLowerCase())) && 
+      (!d.phone || !deleted.includes(d.phone))
+    );
+    saveToStorage(STORAGE_KEYS.DONORS, initial);
+    return initial;
+  });
+
+  const [deletedBloodRequestIds, setDeletedBloodRequestIdsState] = useState<string[]>(() => {
+    const saved = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, []);
+    const merged = Array.from(new Set([...saved, ...KNOWN_TEST_BLOOD_REQUEST_IDS]));
+    saveToStorage(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, merged);
+    return merged;
+  });
+
+  const setDeletedBloodRequestIds = (ids: string[]) => {
+    setDeletedBloodRequestIdsState(ids);
+    saveToStorage(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, ids);
+  };
+
+  const [bloodRequests, setBloodRequestsState] = useState<BloodRequest[]>(() => {
+    const deleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
+    const saved = loadFromStorage<BloodRequest[] | null>(STORAGE_KEYS.BLOOD_REQUESTS, null);
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      const filtered = saved.filter(r => !deleted.includes(r.id));
+      saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, filtered);
+      return filtered;
+    }
+    const initial = INITIAL_BLOOD_REQUESTS.filter(r => !deleted.includes(r.id));
+    saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, initial);
+    return initial;
+  });
 
   const [donorRequests, setDonorRequestsState] = useState<DonorDirectRequest[]>(() =>
     loadFromStorage<DonorDirectRequest[]>(STORAGE_KEYS.DONOR_REQUESTS, [])
@@ -256,12 +335,22 @@ function useMediStockStoreInternal() {
         if (session?.user) {
           const authUser = session.user;
           const userEmail = (authUser.email || '').toLowerCase();
+          const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+          if (currentDeleted.includes(authUser.id) || currentDeleted.includes(userEmail)) {
+            return;
+          }
+
+          let roleToAssign: UserRole = 'normal_user';
+          if (userEmail === 'owner@medistock.com') roleToAssign = 'owner';
+          else if (userEmail === 'admin@medistock.com') roleToAssign = 'admin';
+          else if (authUser.user_metadata?.role) roleToAssign = authUser.user_metadata.role;
+
           const userProfile: UserProfile = {
             id: authUser.id,
             name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || userEmail.split('@')[0] || 'Google User',
             email: userEmail,
             avatar: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-            role: 'normal_user',
+            role: roleToAssign,
             status: 'active',
             createdAt: new Date().toISOString().split('T')[0],
           };
@@ -286,12 +375,22 @@ function useMediStockStoreInternal() {
         if (session?.user) {
           const authUser = session.user;
           const userEmail = (authUser.email || '').toLowerCase();
+          const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+          if (currentDeleted.includes(authUser.id) || currentDeleted.includes(userEmail)) {
+            return;
+          }
+
+          let roleToAssign: UserRole = 'normal_user';
+          if (userEmail === 'owner@medistock.com') roleToAssign = 'owner';
+          else if (userEmail === 'admin@medistock.com') roleToAssign = 'admin';
+          else if (authUser.user_metadata?.role) roleToAssign = authUser.user_metadata.role;
+
           const userProfile: UserProfile = {
             id: authUser.id,
             name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || userEmail.split('@')[0] || 'Google User',
             email: userEmail,
             avatar: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-            role: 'normal_user',
+            role: roleToAssign,
             status: 'active',
             createdAt: new Date().toISOString().split('T')[0],
           };
@@ -343,8 +442,9 @@ function useMediStockStoreInternal() {
       dbService.fetchBloodRequests().then(reqs => {
         if (reqs && reqs.length > 0) {
           setBloodRequestsState(currentReqs => {
+            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
             const existingIds = new Set(currentReqs.map(r => r.id));
-            const newReqs = reqs.filter(r => !existingIds.has(r.id));
+            const newReqs = reqs.filter(r => !currentDeleted.includes(r.id) && !existingIds.has(r.id));
             if (newReqs.length > 0) {
               const merged = [...currentReqs, ...newReqs];
               saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, merged);
@@ -357,9 +457,18 @@ function useMediStockStoreInternal() {
       dbService.fetchBloodDonors().then(dns => {
         if (dns && dns.length > 0) {
           setDonorsState(currentDonors => {
+            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
             const existingIds = new Set(currentDonors.map(d => d.id));
             const existingEmails = new Set(currentDonors.map(d => d.email.toLowerCase()));
-            const newDonors = dns.filter(d => !existingIds.has(d.id) && !existingEmails.has(d.email.toLowerCase()));
+            const existingPhones = new Set(currentDonors.map(d => d.phone));
+            const newDonors = dns.filter(d => 
+              !currentDeleted.includes(d.id) &&
+              (!d.email || !currentDeleted.includes(d.email.toLowerCase())) &&
+              (!d.phone || !currentDeleted.includes(d.phone)) &&
+              !existingIds.has(d.id) && 
+              !existingEmails.has(d.email.toLowerCase()) &&
+              !existingPhones.has(d.phone)
+            );
             if (newDonors.length > 0) {
               const merged = [...currentDonors, ...newDonors];
               saveToStorage(STORAGE_KEYS.DONORS, merged);
@@ -372,8 +481,15 @@ function useMediStockStoreInternal() {
       dbService.fetchProfiles().then(profs => {
         if (profs && profs.length > 0) {
           setUsersState(currentUsers => {
+            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
             const existingEmails = new Set(currentUsers.map(u => u.email.toLowerCase()));
-            const newUsers = profs.filter(p => !existingEmails.has(p.email.toLowerCase()));
+            const existingIds = new Set(currentUsers.map(u => u.id));
+            const newUsers = profs.filter(p => 
+              !currentDeleted.includes(p.id) &&
+              !currentDeleted.includes(p.email.toLowerCase()) &&
+              !existingEmails.has(p.email.toLowerCase()) &&
+              !existingIds.has(p.id)
+            );
             if (newUsers.length > 0) {
               const merged = [...currentUsers, ...newUsers];
               saveToStorage(STORAGE_KEYS.USERS, merged);
@@ -398,9 +514,19 @@ function useMediStockStoreInternal() {
           setUsersState(JSON.parse(e.newValue));
         } catch {}
       }
+      if (e.key === STORAGE_KEYS.DELETED_USERS && e.newValue) {
+        try {
+          setDeletedUserIdsState(JSON.parse(e.newValue));
+        } catch {}
+      }
       if (e.key === STORAGE_KEYS.CURRENT_USER) {
         try {
           setCurrentUserState(e.newValue ? JSON.parse(e.newValue) : null);
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.DELETED_PRODUCTS && e.newValue) {
+        try {
+          setDeletedProductIdsState(JSON.parse(e.newValue));
         } catch {}
       }
       if (e.key === STORAGE_KEYS.ORGANIZATIONS && e.newValue) {
@@ -418,9 +544,19 @@ function useMediStockStoreInternal() {
           setBloodRequestsState(JSON.parse(e.newValue));
         } catch {}
       }
+      if (e.key === STORAGE_KEYS.DELETED_BLOOD_REQUESTS && e.newValue) {
+        try {
+          setDeletedBloodRequestIdsState(JSON.parse(e.newValue));
+        } catch {}
+      }
       if (e.key === STORAGE_KEYS.DONORS && e.newValue) {
         try {
           setDonorsState(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.DELETED_DONORS && e.newValue) {
+        try {
+          setDeletedDonorIdsState(JSON.parse(e.newValue));
         } catch {}
       }
     };
@@ -434,6 +570,13 @@ function useMediStockStoreInternal() {
       throw new Error('Please enter your email address.');
     }
     const cleanEmail = email.trim().toLowerCase();
+
+    // Remove from deleted registry if present so user can sign in
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+    if (currentDeleted.includes(cleanEmail)) {
+      setDeletedUserIds(currentDeleted.filter(id => id !== cleanEmail));
+    }
+
     let found = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!found) {
       // Auto-provision new user account seamlessly when signing in with a new email
@@ -451,6 +594,10 @@ function useMediStockStoreInternal() {
       const updatedUsers = [...users, newUser];
       setUsers(updatedUsers);
       found = newUser;
+
+      if (isSupabaseConfigured) {
+        dbService.updateUserProfile(newUser);
+      }
       logActivity('New User Registered on Sign In', `${newUser.name} (${newUser.email})`, 'user');
     } else {
       if (password && found.password && found.password !== password) {
@@ -488,6 +635,13 @@ function useMediStockStoreInternal() {
       throw new Error('Please provide your Google email address.');
     }
     const cleanEmail = email.trim().toLowerCase();
+
+    // Remove from deleted registry if present
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+    if (currentDeleted.includes(cleanEmail)) {
+      setDeletedUserIds(currentDeleted.filter(id => id !== cleanEmail));
+    }
+
     let user = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!user) {
       // Auto-provision Google SSO account seamlessly
@@ -504,6 +658,10 @@ function useMediStockStoreInternal() {
       const updatedUsers = [...users, newUser];
       setUsers(updatedUsers);
       user = newUser;
+
+      if (isSupabaseConfigured) {
+        dbService.updateUserProfile(newUser);
+      }
       logActivity('Google Account Provisioned', `${newUser.name} (${newUser.email})`, 'user');
     }
 
@@ -537,6 +695,13 @@ function useMediStockStoreInternal() {
       throw new Error('Please provide your Google email address.');
     }
     const cleanEmail = data.email.trim().toLowerCase();
+
+    // Remove from deleted registry if present
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+    if (currentDeleted.includes(cleanEmail)) {
+      setDeletedUserIds(currentDeleted.filter(id => id !== cleanEmail));
+    }
+
     const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (existing) {
       throw new Error('An account with this Google email already exists. Please switch to Sign In to log in.');
@@ -567,6 +732,13 @@ function useMediStockStoreInternal() {
       throw new Error('Please enter a valid email address.');
     }
     const cleanEmail = data.email.trim().toLowerCase();
+
+    // Remove from deleted registry if present
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+    if (currentDeleted.includes(cleanEmail)) {
+      setDeletedUserIds(currentDeleted.filter(id => id !== cleanEmail));
+    }
+
     const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (existing) {
       throw new Error('An account with this email already exists. Please switch to Sign In.');
@@ -1027,8 +1199,16 @@ function useMediStockStoreInternal() {
     urgency: BloodRequest['urgency'];
     notes: string;
   }) => {
+    const newReqId = generateUUID();
+
+    // Ensure this new ID is not in deleted registry
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
+    if (currentDeleted.includes(newReqId)) {
+      setDeletedBloodRequestIds(currentDeleted.filter(id => id !== newReqId));
+    }
+
     const newReq: BloodRequest = {
-      id: generateUUID(),
+      id: newReqId,
       requesterId: currentUser?.id || 'guest',
       requesterName: data.requesterName,
       requesterAvatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
@@ -1103,6 +1283,12 @@ function useMediStockStoreInternal() {
   const deleteBloodRequest = (requestId: string) => {
     const updated = bloodRequests.filter(r => r.id !== requestId);
     setBloodRequests(updated);
+
+    // Save to deleted list so it NEVER returns on page refresh or Supabase hydration
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
+    const newDeleted = Array.from(new Set([...currentDeleted, requestId]));
+    setDeletedBloodRequestIds(newDeleted);
+
     if (isSupabaseConfigured) {
       dbService.deleteBloodRequest(requestId);
     }
@@ -1111,6 +1297,12 @@ function useMediStockStoreInternal() {
 
   // Clear All Blood Requests (Admin / Owner 1-Click)
   const clearAllBloodRequests = () => {
+    // Add all current requests and known test IDs to deleted list
+    const currentIds = bloodRequests.map(r => r.id);
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
+    const newDeleted = Array.from(new Set([...currentDeleted, ...currentIds, ...KNOWN_TEST_BLOOD_REQUEST_IDS]));
+    setDeletedBloodRequestIds(newDeleted);
+
     setBloodRequests([]);
     if (isSupabaseConfigured) {
       dbService.clearAllBloodRequests();
@@ -1120,9 +1312,18 @@ function useMediStockStoreInternal() {
 
   // Clear Completed / Fulfilled Blood Requests
   const clearFulfilledBloodRequests = () => {
+    const fulfilledIds = bloodRequests.filter(r => r.status === 'Fulfilled' || r.status === 'Cancelled').map(r => r.id);
     const updated = bloodRequests.filter(r => r.status !== 'Fulfilled' && r.status !== 'Cancelled');
-    const removedCount = bloodRequests.length - updated.length;
+    const removedCount = fulfilledIds.length;
+
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
+    const newDeleted = Array.from(new Set([...currentDeleted, ...fulfilledIds]));
+    setDeletedBloodRequestIds(newDeleted);
+
     setBloodRequests(updated);
+    if (isSupabaseConfigured) {
+      fulfilledIds.forEach(id => dbService.deleteBloodRequest(id));
+    }
     logActivity('Fulfilled Blood Requests Cleared', `Removed ${removedCount} completed requests`, 'system');
   };
 
@@ -1134,6 +1335,15 @@ function useMediStockStoreInternal() {
     notes?: string;
   }) => {
     if (!currentUser) throw new Error('Please sign in to register as a donor.');
+
+    // Un-tombstone donor id, email, phone if previously deleted
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
+    const cleanEmail = currentUser.email?.toLowerCase();
+    const cleanPhone = data.phone;
+    const updatedDeleted = currentDeleted.filter(d => 
+      d !== cleanEmail && d !== cleanPhone
+    );
+    setDeletedDonorIds(updatedDeleted);
 
     const existingIndex = donors.findIndex(d => d.userId === currentUser.id || d.email === currentUser.email);
 
@@ -1199,8 +1409,16 @@ function useMediStockStoreInternal() {
 
   // Delete Donor Profile
   const deleteDonor = (donorId: string) => {
+    const target = donors.find(d => d.id === donorId);
     const updated = donors.filter(d => d.id !== donorId);
     setDonors(updated);
+
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
+    const toAdd = [donorId];
+    if (target?.email) toAdd.push(target.email.toLowerCase());
+    if (target?.phone) toAdd.push(target.phone);
+    setDeletedDonorIds(Array.from(new Set([...currentDeleted, ...toAdd])));
+
     if (isSupabaseConfigured) {
       dbService.deleteBloodDonor(donorId);
     }
@@ -1209,6 +1427,15 @@ function useMediStockStoreInternal() {
 
   // Clear All Donors (Admin / Owner 1-Click Action)
   const clearAllDonors = () => {
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
+    const toAdd: string[] = [];
+    donors.forEach(d => {
+      toAdd.push(d.id);
+      if (d.email) toAdd.push(d.email.toLowerCase());
+      if (d.phone) toAdd.push(d.phone);
+    });
+    setDeletedDonorIds(Array.from(new Set([...currentDeleted, ...toAdd])));
+
     setDonors([]);
     if (isSupabaseConfigured) {
       dbService.clearAllBloodDonors();
@@ -1375,10 +1602,23 @@ function useMediStockStoreInternal() {
     const updatedUsers = users.filter(u => u.id !== userId);
     setUsers(updatedUsers);
 
+    // Save to deletedUserIds so it can NEVER resurrect on refresh or Supabase hydration
+    const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+    setDeletedUserIds(Array.from(new Set([...currentDeleted, userId, target.email.toLowerCase()])));
+
     // Also remove any linked blood donor record to prevent orphan data
     const updatedDonors = donors.filter(d => d.userId !== userId && d.email.toLowerCase() !== target.email.toLowerCase());
     if (updatedDonors.length !== donors.length) {
       setDonors(updatedDonors);
+      const donorTargets = donors.filter(d => d.userId === userId || d.email.toLowerCase() === target.email.toLowerCase());
+      const currentDelDonors = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
+      const donorAdd: string[] = [];
+      donorTargets.forEach(dt => {
+        donorAdd.push(dt.id);
+        if (dt.email) donorAdd.push(dt.email.toLowerCase());
+        if (dt.phone) donorAdd.push(dt.phone);
+      });
+      setDeletedDonorIds(Array.from(new Set([...currentDelDonors, ...donorAdd])));
     }
 
     // Also remove any linked organization if it was an organization user
@@ -1575,6 +1815,10 @@ function useMediStockStoreInternal() {
     addProduct,
     deleteProduct,
     deleteUser,
+    deletedUserIds,
+    deletedBloodRequestIds,
+    deletedDonorIds,
+    deletedProductIds,
     getDynamicOrgStats,
     dynamicAdminStats,
     dynamicOwnerStats,
