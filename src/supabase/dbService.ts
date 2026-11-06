@@ -148,32 +148,47 @@ export const dbService = {
   async saveOrder(order: Order): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const { error: orderError } = await supabase.from('orders').insert({
-        id: order.id,
-        organization_id: order.organizationId,
+      const isOrderUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(order.id);
+      const isOrgUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(order.organizationId);
+
+      const orderPayload: any = {
         organization_name: order.organizationName,
         subtotal: order.subtotal,
         tax: order.tax,
         total: order.total,
         status: order.status,
-      });
+      };
+      if (isOrderUUID) orderPayload.id = order.id;
+      if (isOrgUUID) orderPayload.organization_id = order.organizationId;
+
+      const { data: insertedOrder, error: orderError } = await supabase
+        .from('orders')
+        .insert(orderPayload)
+        .select()
+        .single();
 
       if (orderError) {
-        console.warn('Failed to insert order into Supabase:', orderError.message);
+        console.warn('Supabase saveOrder notice (using persistent local storage fallback):', orderError.message);
         return false;
       }
 
-      if (order.items && order.items.length > 0) {
-        const itemRows = order.items.map(item => ({
-          order_id: order.id,
-          product_id: item.productId,
-          product_name: item.productName,
-          unit: item.unit || 'Box',
-          quantity: item.quantity,
-          unit_price: item.unitPrice,
-          total: item.total,
-          batch_number: item.batchNumber || 'BATCH-GEN',
-        }));
+      const activeOrderId = insertedOrder?.id || (isOrderUUID ? order.id : null);
+
+      if (activeOrderId && order.items && order.items.length > 0) {
+        const itemRows = order.items.map(item => {
+          const isItemProdUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(item.productId);
+          const row: any = {
+            order_id: activeOrderId,
+            product_name: item.productName,
+            unit: item.unit || 'Box',
+            quantity: item.quantity,
+            unit_price: item.unitPrice,
+            total: item.total,
+            batch_number: item.batchNumber || 'BATCH-GEN',
+          };
+          if (isItemProdUUID) row.product_id = item.productId;
+          return row;
+        });
         await supabase.from('order_items').insert(itemRows);
       }
 
@@ -188,8 +203,8 @@ export const dbService = {
   async saveOrganization(org: Organization): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const { error } = await supabase.from('organizations').insert({
-        id: org.id,
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(org.id);
+      const payload: any = {
         name: org.name,
         type: org.type,
         representative: org.representative,
@@ -198,10 +213,13 @@ export const dbService = {
         address: org.address,
         city: org.city,
         verification_status: org.verificationStatus,
-      });
+      };
+      if (isUUID) payload.id = org.id;
+
+      const { error } = await supabase.from('organizations').insert(payload);
 
       if (error) {
-        console.warn('Failed to insert org into Supabase:', error.message);
+        console.warn('Supabase saveOrganization notice (using persistent local storage fallback):', error.message);
         return false;
       }
       return true;
@@ -211,12 +229,51 @@ export const dbService = {
     }
   },
 
-  // 6. Save Blood Request to Supabase
+  // 6. Fetch Blood Requests from Supabase
+  async fetchBloodRequests(): Promise<BloodRequest[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('blood_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Supabase fetchBloodRequests error:', error.message);
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        return data.map((row: any) => ({
+          id: row.id,
+          requesterId: row.requester_id || 'guest',
+          requesterName: row.requester_name,
+          requesterAvatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+          bloodGroup: row.blood_group,
+          hospital: row.hospital,
+          location: row.location,
+          unitsNeeded: Number(row.units_needed || 1),
+          dateNeeded: row.date_needed || new Date().toISOString().split('T')[0],
+          contactPhone: row.contact_phone,
+          urgency: row.urgency === 'Critical' ? 'Critical' : (row.urgency === 'Urgent' ? 'Urgent' : 'Normal'),
+          notes: row.notes || '',
+          status: row.status === 'Fulfilled' ? 'Fulfilled' : (row.status === 'Cancelled' ? 'Cancelled' : 'Open'),
+          createdAt: row.created_at ? row.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        }));
+      }
+      return null;
+    } catch (err) {
+      console.warn('Supabase error in fetchBloodRequests:', err);
+      return null;
+    }
+  },
+
+  // 6b. Save Blood Request to Supabase
   async saveBloodRequest(req: BloodRequest): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const { error } = await supabase.from('blood_requests').insert({
-        id: req.id,
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.id);
+      const payload: any = {
         requester_name: req.requesterName,
         blood_group: req.bloodGroup,
         hospital: req.hospital,
@@ -224,10 +281,18 @@ export const dbService = {
         units_needed: req.unitsNeeded,
         date_needed: req.dateNeeded,
         contact_phone: req.contactPhone,
-        urgency: req.urgency,
+        urgency: req.urgency === 'Critical' ? 'Critical' : (req.urgency === 'Urgent' ? 'Urgent' : 'Normal'),
         notes: req.notes,
-        status: req.status,
-      });
+        status: req.status === 'Fulfilled' ? 'Fulfilled' : (req.status === 'Cancelled' ? 'Cancelled' : 'Open'),
+      };
+      if (isUUID) {
+        payload.id = req.id;
+      }
+      if (req.requesterId && req.requesterId !== 'guest' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(req.requesterId)) {
+        payload.requester_id = req.requesterId;
+      }
+
+      const { error } = await supabase.from('blood_requests').upsert(payload);
 
       if (error) {
         console.warn('Failed to insert blood request into Supabase:', error.message);
@@ -255,7 +320,104 @@ export const dbService = {
   async clearAllBloodRequests(): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const { error } = await supabase.from('blood_requests').delete().neq('id', '');
+      const { error } = await supabase.from('blood_requests').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      return !error;
+    } catch {
+      return false;
+    }
+  },
+
+  // 6c. Fetch Blood Donors from Supabase
+  async fetchBloodDonors(): Promise<BloodDonor[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('blood_donors')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.warn('Supabase fetchBloodDonors error:', error.message);
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        return data.map((row: any) => ({
+          id: row.id,
+          userId: row.user_id || undefined,
+          name: row.name,
+          email: row.email,
+          phone: row.phone,
+          avatar: row.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+          bloodGroup: row.blood_group,
+          location: row.location,
+          isAvailable: Boolean(row.is_available),
+          lastDonationDate: row.last_donation_date || new Date().toISOString().split('T')[0],
+          notes: '',
+          createdAt: row.created_at ? row.created_at.split('T')[0] : new Date().toISOString().split('T')[0],
+        }));
+      }
+      return null;
+    } catch (err) {
+      console.warn('Supabase error in fetchBloodDonors:', err);
+      return null;
+    }
+  },
+
+  // 6d. Save Blood Donor to Supabase
+  async saveBloodDonor(donor: BloodDonor): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(donor.id);
+      const payload: any = {
+        name: donor.name,
+        email: donor.email || 'donor@medistock.com',
+        phone: donor.phone,
+        blood_group: donor.bloodGroup,
+        location: donor.location,
+        is_available: donor.isAvailable,
+        avatar_url: donor.avatar,
+      };
+      if (isUUID) {
+        payload.id = donor.id;
+      }
+      if (donor.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(donor.userId)) {
+        payload.user_id = donor.userId;
+      }
+      const { error } = await supabase.from('blood_donors').upsert(payload);
+      if (error) {
+        console.warn('Failed to upsert blood donor to Supabase:', error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('Supabase saveBloodDonor exception:', err);
+      return false;
+    }
+  },
+
+  // 6e. Delete Blood Donor from Supabase
+  async deleteBloodDonor(id: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+      if (isUUID) {
+        const { error } = await supabase.from('blood_donors').delete().eq('id', id);
+        return !error;
+      } else {
+        const { error } = await supabase.from('blood_donors').delete().eq('phone', id);
+        return !error;
+      }
+    } catch {
+      return false;
+    }
+  },
+
+  // 6f. Clear All Blood Donors from Supabase
+  async clearAllBloodDonors(): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('blood_donors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
       return !error;
     } catch {
       return false;

@@ -10,15 +10,15 @@ interface CartDrawerProps {
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({ isOpen, onClose, onNavigate, onOpenLogin }) => {
-  const { cart, updateCartQuantity, removeFromCart, clearCart, placeOrder, activeRole, currentUser, organizations } = useMediStockStore();
+  const { cart, updateCartQuantity, removeFromCart, clearCart, placeOrder, activeRole, currentUser, currentUserOrg, organizations } = useMediStockStore();
 
   if (!isOpen) return null;
 
   const subtotal = cart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
 
-  const userOrg = currentUser?.organizationId
+  const userOrg = currentUserOrg || (currentUser?.organizationId
     ? organizations.find(o => o.id === currentUser.organizationId)
-    : (currentUser?.email ? organizations.find(o => o.email.toLowerCase() === currentUser.email.toLowerCase()) : null);
+    : (currentUser?.email ? organizations.find(o => o.email.toLowerCase() === currentUser.email.toLowerCase()) : null));
 
   const isApprovedOrg = (activeRole === 'organization' || userOrg?.verificationStatus === 'Approved') && userOrg?.verificationStatus === 'Approved';
   const isPendingOrg = userOrg?.verificationStatus === 'Pending';

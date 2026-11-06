@@ -92,6 +92,17 @@ function saveToStorage<T>(key: string, value: T): void {
   }
 }
 
+export const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
 function useMediStockStoreInternal() {
   // 1. Users & Authentication (default guest / logged out if null)
   const [users, setUsersState] = useState<UserProfile[]>(() =>
@@ -308,6 +319,35 @@ function useMediStockStoreInternal() {
       dbService.fetchOrders().then(ords => {
         if (ords && ords.length > 0) setOrders(ords);
       });
+      dbService.fetchBloodRequests().then(reqs => {
+        if (reqs && reqs.length > 0) {
+          setBloodRequestsState(currentReqs => {
+            const existingIds = new Set(currentReqs.map(r => r.id));
+            const newReqs = reqs.filter(r => !existingIds.has(r.id));
+            if (newReqs.length > 0) {
+              const merged = [...currentReqs, ...newReqs];
+              saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, merged);
+              return merged;
+            }
+            return currentReqs;
+          });
+        }
+      });
+      dbService.fetchBloodDonors().then(dns => {
+        if (dns && dns.length > 0) {
+          setDonorsState(currentDonors => {
+            const existingIds = new Set(currentDonors.map(d => d.id));
+            const existingEmails = new Set(currentDonors.map(d => d.email.toLowerCase()));
+            const newDonors = dns.filter(d => !existingIds.has(d.id) && !existingEmails.has(d.email.toLowerCase()));
+            if (newDonors.length > 0) {
+              const merged = [...currentDonors, ...newDonors];
+              saveToStorage(STORAGE_KEYS.DONORS, merged);
+              return merged;
+            }
+            return currentDonors;
+          });
+        }
+      });
 
       return () => {
         authListener?.subscription.unsubscribe();
@@ -328,9 +368,30 @@ function useMediStockStoreInternal() {
     if (password && found.password && found.password !== password) {
       throw new Error('Incorrect password. Please verify your credentials and try again.');
     }
-    setCurrentUser(found);
-    logActivity('User Signed In', `${found.name} (${found.role})`, 'user');
-    return found;
+
+    // Dynamic Role Resolution: Check if user has an approved organization
+    const linkedOrg = organizations.find(
+      o => (o.userId && o.userId === found.id) ||
+           o.id === found.organizationId ||
+           (o.email && o.email.toLowerCase() === cleanEmail)
+    );
+    let resolvedRole = found.role;
+    if (resolvedRole !== 'owner' && resolvedRole !== 'admin') {
+      if (linkedOrg && linkedOrg.verificationStatus === 'Approved') {
+        resolvedRole = 'organization';
+      } else {
+        resolvedRole = 'normal_user';
+      }
+    }
+    const userToSet: UserProfile = {
+      ...found,
+      role: resolvedRole,
+      organizationId: linkedOrg?.id || found.organizationId,
+    };
+
+    setCurrentUser(userToSet);
+    logActivity('User Signed In', `${userToSet.name} (${userToSet.role})`, 'user');
+    return userToSet;
   };
 
   const loginWithGoogle = (email: string): UserProfile => {
@@ -342,9 +403,30 @@ function useMediStockStoreInternal() {
     if (!user) {
       throw new Error('No account found with this Google email. You cannot sign in without registering first. Please switch to the Sign Up tab to create your account.');
     }
-    setCurrentUser(user);
-    logActivity('Google Authentication Signed In', `${user.name}`, 'user');
-    return user;
+
+    // Dynamic Role Resolution: Check if user has an approved organization
+    const linkedOrg = organizations.find(
+      o => (o.userId && o.userId === user.id) ||
+           o.id === user.organizationId ||
+           (o.email && o.email.toLowerCase() === cleanEmail)
+    );
+    let resolvedRole = user.role;
+    if (resolvedRole !== 'owner' && resolvedRole !== 'admin') {
+      if (linkedOrg && linkedOrg.verificationStatus === 'Approved') {
+        resolvedRole = 'organization';
+      } else {
+        resolvedRole = 'normal_user';
+      }
+    }
+    const userToSet: UserProfile = {
+      ...user,
+      role: resolvedRole,
+      organizationId: linkedOrg?.id || user.organizationId,
+    };
+
+    setCurrentUser(userToSet);
+    logActivity('Google Authentication Signed In', `${userToSet.name} (${userToSet.role})`, 'user');
+    return userToSet;
   };
 
   const registerWithGoogle = (data: { email: string; name?: string; role?: UserRole }): UserProfile => {
@@ -724,7 +806,9 @@ function useMediStockStoreInternal() {
     // If Approved: upgrade the linked user's role to 'organization'!
     // If Rejected: ensure user's role remains 'normal_user'!
     const updatedUsers = users.map(u => {
-      const isLinked = u.organizationId === orgId || (targetOrg && u.email.toLowerCase() === targetOrg.email.toLowerCase());
+      const isLinked = (targetOrg?.userId && u.id === targetOrg.userId) ||
+                       u.organizationId === orgId ||
+                       (targetOrg?.email && u.email.toLowerCase() === targetOrg.email.toLowerCase());
       if (isLinked) {
         return {
           ...u,
@@ -736,9 +820,11 @@ function useMediStockStoreInternal() {
     });
     setUsers(updatedUsers);
 
-    // Also update currentUser if it matches the organization
+    // Also update currentUser if it matches the organization or target user
     if (currentUser) {
-      const isCurrentLinked = currentUser.organizationId === orgId || (targetOrg && currentUser.email.toLowerCase() === targetOrg.email.toLowerCase());
+      const isCurrentLinked = (targetOrg?.userId && currentUser.id === targetOrg.userId) ||
+                              currentUser.organizationId === orgId ||
+                              (targetOrg?.email && currentUser.email.toLowerCase() === targetOrg.email.toLowerCase());
       if (isCurrentLinked) {
         const updatedCurrentUser: UserProfile = {
           ...currentUser,
@@ -771,9 +857,10 @@ function useMediStockStoreInternal() {
     city: string;
     documents: Array<{ name: string; type: string; url?: string; size?: string }>;
   }) => {
-    const newOrgId = `org-${Date.now()}`;
+    const newOrgId = generateUUID();
     const newOrg: Organization = {
       id: newOrgId,
+      userId: currentUser?.id,
       name: data.name,
       type: data.type,
       representative: data.representative,
@@ -838,7 +925,7 @@ function useMediStockStoreInternal() {
     notes: string;
   }) => {
     const newReq: BloodRequest = {
-      id: `breq-${Date.now()}`,
+      id: generateUUID(),
       requesterId: currentUser?.id || 'guest',
       requesterName: data.requesterName,
       requesterAvatar: currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
@@ -949,7 +1036,7 @@ function useMediStockStoreInternal() {
 
     if (existingIndex >= 0) {
       const updated = [...donors];
-      updated[existingIndex] = {
+      const updatedDonor = {
         ...updated[existingIndex],
         bloodGroup: data.bloodGroup,
         location: data.location,
@@ -957,12 +1044,18 @@ function useMediStockStoreInternal() {
         notes: data.notes,
         isAvailable: true,
       };
+      updated[existingIndex] = updatedDonor;
       setDonors(updated);
+
+      if (isSupabaseConfigured) {
+        dbService.saveBloodDonor(updatedDonor);
+      }
+
       logActivity('Donor Profile Updated', `${currentUser.name} (${data.bloodGroup})`, 'user');
-      return updated[existingIndex];
+      return updatedDonor;
     } else {
       const newDonor: BloodDonor = {
-        id: `donor-${Date.now()}`,
+        id: generateUUID(),
         userId: currentUser.id,
         name: currentUser.name,
         email: currentUser.email,
@@ -976,6 +1069,11 @@ function useMediStockStoreInternal() {
         createdAt: new Date().toISOString().split('T')[0],
       };
       setDonors([newDonor, ...donors]);
+
+      if (isSupabaseConfigured) {
+        dbService.saveBloodDonor(newDonor);
+      }
+
       logActivity('Donor Registered', `${currentUser.name} (${data.bloodGroup})`, 'user');
       return newDonor;
     }
@@ -983,7 +1081,16 @@ function useMediStockStoreInternal() {
 
   // Toggle Donor Availability
   const toggleDonorAvailability = (donorId: string) => {
-    const updated = donors.map(d => d.id === donorId ? { ...d, isAvailable: !d.isAvailable } : d);
+    const updated = donors.map(d => {
+      if (d.id === donorId) {
+        const toggled = { ...d, isAvailable: !d.isAvailable };
+        if (isSupabaseConfigured) {
+          dbService.saveBloodDonor(toggled);
+        }
+        return toggled;
+      }
+      return d;
+    });
     setDonors(updated);
   };
 
@@ -991,12 +1098,18 @@ function useMediStockStoreInternal() {
   const deleteDonor = (donorId: string) => {
     const updated = donors.filter(d => d.id !== donorId);
     setDonors(updated);
+    if (isSupabaseConfigured) {
+      dbService.deleteBloodDonor(donorId);
+    }
     logActivity('Donor Profile Removed', `Donor ID ${donorId}`, 'user');
   };
 
   // Clear All Donors (Admin / Owner 1-Click Action)
   const clearAllDonors = () => {
     setDonors([]);
+    if (isSupabaseConfigured) {
+      dbService.clearAllBloodDonors();
+    }
     logActivity('All Donors Cleared', 'Admin/Owner Action', 'system');
   };
 
@@ -1258,9 +1371,50 @@ function useMediStockStoreInternal() {
     };
   }, [users, organizations, orders]);
 
+  // Dynamically detect linked organization for the currently logged in user
+  const currentUserOrg = useMemo(() => {
+    if (!currentUser) return null;
+    return (
+      organizations.find(
+        o => (o.userId && o.userId === currentUser.id) ||
+             o.id === currentUser.organizationId ||
+             (o.email && currentUser.email && o.email.toLowerCase() === currentUser.email.toLowerCase())
+      ) || null
+    );
+  }, [currentUser, organizations]);
+
+  // Dynamically compute effective role (Owner & Admin are preserved, verified organizations get 'organization')
+  const activeRole: UserRole = useMemo(() => {
+    if (!currentUser) return 'normal_user';
+    if (currentUser.role === 'owner') return 'owner';
+    if (currentUser.role === 'admin') return 'admin';
+    if (currentUserOrg && currentUserOrg.verificationStatus === 'Approved') {
+      return 'organization';
+    }
+    return 'normal_user';
+  }, [currentUser, currentUserOrg]);
+
+  // Keep currentUser state in sync when organization gets approved or role dynamically changes
+  useEffect(() => {
+    if (currentUser && currentUser.role !== 'owner' && currentUser.role !== 'admin') {
+      const needsRoleSync = currentUser.role !== activeRole;
+      const needsOrgSync = currentUserOrg && currentUser.organizationId !== currentUserOrg.id;
+      if (needsRoleSync || needsOrgSync) {
+        const synced: UserProfile = {
+          ...currentUser,
+          role: activeRole,
+          organizationId: currentUserOrg?.id || currentUser.organizationId,
+        };
+        setCurrentUserState(synced);
+        saveToStorage(STORAGE_KEYS.CURRENT_USER, synced);
+      }
+    }
+  }, [activeRole, currentUser, currentUserOrg]);
+
   return {
     currentUser,
-    activeRole: currentUser?.role || 'normal_user',
+    currentUserOrg,
+    activeRole,
     login,
     loginWithGoogle,
     registerWithGoogle,

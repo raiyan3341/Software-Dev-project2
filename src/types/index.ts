@@ -51,6 +51,7 @@ export interface OrganizationDocument {
 
 export interface Organization {
   id: string;
+  userId?: string;
   name: string;
   type: OrganizationType;
   representative: string;

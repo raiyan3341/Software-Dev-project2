@@ -32,7 +32,7 @@ interface OrganizationDashboardPageProps {
 export const OrganizationDashboardPage: React.FC<OrganizationDashboardPageProps> = ({
   onNavigate,
 }) => {
-  const { organizations, orders, demandRequests, getDynamicOrgStats, currentUser } = useMediStockStore();
+  const { organizations, orders, demandRequests, getDynamicOrgStats, currentUser, currentUserOrg } = useMediStockStore();
 
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'products' | 'demand' | 'profile'>('overview');
   const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<Order | null>(null);
@@ -59,7 +59,7 @@ export const OrganizationDashboardPage: React.FC<OrganizationDashboardPageProps>
   };
 
   // Find the active organization
-  const currentOrg = (currentUser?.organizationId ? organizations.find(o => o.id === currentUser.organizationId) : null) || organizations[0] || fallbackOrg;
+  const currentOrg = currentUserOrg || (currentUser?.organizationId ? organizations.find(o => o.id === currentUser.organizationId) : null) || organizations[0] || fallbackOrg;
 
   // Dynamic statistics calculated directly from the database orders
   const { totalOrders, pendingOrders, totalSpent } = getDynamicOrgStats(currentOrg.id);
