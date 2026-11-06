@@ -106,6 +106,25 @@ function saveToStorage<T>(key: string, value: T): void {
   }
 }
 
+// Instant cross-tab & cross-window synchronization channel
+const SYNC_CHANNEL_NAME = 'medistock_sync_broadcast_v1';
+let syncBroadcastChannel: BroadcastChannel | null = null;
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  try {
+    syncBroadcastChannel = new BroadcastChannel(SYNC_CHANNEL_NAME);
+  } catch (e) {
+    console.warn('BroadcastChannel not supported:', e);
+  }
+}
+
+export const broadcastSyncMessage = (type: string, payload?: any) => {
+  try {
+    syncBroadcastChannel?.postMessage({ type, payload, timestamp: Date.now() });
+  } catch (e) {
+    // ignore
+  }
+};
+
 export const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
@@ -327,6 +346,201 @@ function useMediStockStoreInternal() {
     saveToStorage(STORAGE_KEYS.NOTIFICATIONS, newNotifs);
   };
 
+  // Database Synchronization Engine (Supabase Cloud + Realtime + Continuous Polling)
+  const syncFromDatabase = async () => {
+    if (!isSupabaseConfigured) return;
+
+    try {
+      // 1. Sync User Profiles
+      const profs = await dbService.fetchProfiles();
+      if (profs && profs.length > 0) {
+        setUsersState(currentUsers => {
+          const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
+          const userMap = new Map<string, UserProfile>();
+          currentUsers.forEach(u => {
+            if (!currentDeleted.includes(u.id) && !currentDeleted.includes(u.email.toLowerCase())) {
+              userMap.set(u.email.toLowerCase(), u);
+            }
+          });
+          let changed = false;
+          profs.forEach(p => {
+            const emailKey = p.email.toLowerCase();
+            if (currentDeleted.includes(p.id) || currentDeleted.includes(emailKey)) return;
+            const existing = userMap.get(emailKey);
+            if (!existing) {
+              userMap.set(emailKey, p);
+              changed = true;
+            } else if (existing.role !== p.role || existing.name !== p.name || (p.phone && existing.phone !== p.phone)) {
+              userMap.set(emailKey, { ...existing, ...p });
+              changed = true;
+            }
+          });
+          if (changed) {
+            const merged = Array.from(userMap.values());
+            saveToStorage(STORAGE_KEYS.USERS, merged);
+            return merged;
+          }
+          return currentUsers;
+        });
+      }
+
+      // 2. Sync Organizations
+      const orgs = await dbService.fetchOrganizations();
+      if (orgs && orgs.length > 0) {
+        setOrganizationsState(currentOrgs => {
+          const orgMap = new Map<string, Organization>();
+          currentOrgs.forEach(o => orgMap.set(o.id, o));
+          let changed = false;
+          orgs.forEach(dbOrg => {
+            const existing = orgMap.get(dbOrg.id);
+            if (!existing) {
+              orgMap.set(dbOrg.id, dbOrg);
+              changed = true;
+            } else if (
+              existing.verificationStatus !== dbOrg.verificationStatus ||
+              existing.rejectionReason !== dbOrg.rejectionReason
+            ) {
+              orgMap.set(dbOrg.id, { ...existing, ...dbOrg });
+              changed = true;
+            }
+          });
+          if (changed) {
+            const merged = Array.from(orgMap.values());
+            saveToStorage(STORAGE_KEYS.ORGANIZATIONS, merged);
+            return merged;
+          }
+          return currentOrgs;
+        });
+      }
+
+      // 3. Sync Blood Requests
+      const reqs = await dbService.fetchBloodRequests();
+      if (reqs && reqs.length > 0) {
+        setBloodRequestsState(currentReqs => {
+          const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
+          const reqMap = new Map<string, BloodRequest>();
+          currentReqs.forEach(r => {
+            if (!currentDeleted.includes(r.id)) reqMap.set(r.id, r);
+          });
+          let changed = false;
+          reqs.forEach(dbReq => {
+            if (currentDeleted.includes(dbReq.id)) return;
+            const existing = reqMap.get(dbReq.id);
+            if (!existing) {
+              reqMap.set(dbReq.id, dbReq);
+              changed = true;
+            } else if (existing.status !== dbReq.status) {
+              reqMap.set(dbReq.id, { ...existing, ...dbReq });
+              changed = true;
+            }
+          });
+          if (changed) {
+            const merged = Array.from(reqMap.values());
+            saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, merged);
+            return merged;
+          }
+          return currentReqs;
+        });
+      }
+
+      // 4. Sync Blood Donors
+      const dns = await dbService.fetchBloodDonors();
+      if (dns && dns.length > 0) {
+        setDonorsState(currentDonors => {
+          const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
+          const donorMap = new Map<string, BloodDonor>();
+          currentDonors.forEach(d => {
+            const isDel = currentDeleted.includes(d.id) ||
+              (d.email && currentDeleted.includes(d.email.toLowerCase())) ||
+              (d.phone && currentDeleted.includes(d.phone));
+            if (!isDel) donorMap.set(d.id, d);
+          });
+          let changed = false;
+          dns.forEach(dbDonor => {
+            const isDel = currentDeleted.includes(dbDonor.id) ||
+              (dbDonor.email && currentDeleted.includes(dbDonor.email.toLowerCase())) ||
+              (dbDonor.phone && currentDeleted.includes(dbDonor.phone));
+            if (isDel) return;
+            const existing = donorMap.get(dbDonor.id);
+            if (!existing) {
+              donorMap.set(dbDonor.id, dbDonor);
+              changed = true;
+            } else if (existing.isAvailable !== dbDonor.isAvailable) {
+              donorMap.set(dbDonor.id, { ...existing, ...dbDonor });
+              changed = true;
+            }
+          });
+          if (changed) {
+            const merged = Array.from(donorMap.values());
+            saveToStorage(STORAGE_KEYS.DONORS, merged);
+            return merged;
+          }
+          return currentDonors;
+        });
+      }
+
+      // 5. Sync Products
+      const prods = await dbService.fetchProducts();
+      if (prods && prods.length > 0) {
+        setProductsState(currentProducts => {
+          const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, []);
+          const prodMap = new Map<string, Product>();
+          currentProducts.forEach(p => {
+            if (!currentDeleted.includes(p.id) && !currentDeleted.includes(p.sku)) {
+              prodMap.set(p.id, p);
+            }
+          });
+          let changed = false;
+          prods.forEach(dbProd => {
+            if (currentDeleted.includes(dbProd.id) || currentDeleted.includes(dbProd.sku)) return;
+            const existing = prodMap.get(dbProd.id);
+            if (!existing) {
+              prodMap.set(dbProd.id, dbProd);
+              changed = true;
+            } else if (existing.stock !== dbProd.stock || existing.price !== dbProd.price || existing.isActive !== dbProd.isActive) {
+              prodMap.set(dbProd.id, { ...existing, ...dbProd });
+              changed = true;
+            }
+          });
+          if (changed) {
+            const merged = Array.from(prodMap.values());
+            saveToStorage(STORAGE_KEYS.PRODUCTS, merged);
+            return merged;
+          }
+          return currentProducts;
+        });
+      }
+
+      // 6. Sync Orders
+      const ords = await dbService.fetchOrders();
+      if (ords && ords.length > 0) {
+        setOrdersState(currentOrders => {
+          const orderMap = new Map<string, Order>();
+          currentOrders.forEach(o => orderMap.set(o.id, o));
+          let changed = false;
+          ords.forEach(dbOrder => {
+            const existing = orderMap.get(dbOrder.id);
+            if (!existing) {
+              orderMap.set(dbOrder.id, dbOrder);
+              changed = true;
+            } else if (existing.status !== dbOrder.status) {
+              orderMap.set(dbOrder.id, { ...existing, ...dbOrder });
+              changed = true;
+            }
+          });
+          if (changed) {
+            const merged = Array.from(orderMap.values());
+            saveToStorage(STORAGE_KEYS.ORDERS, merged);
+            return merged;
+          }
+          return currentOrders;
+        });
+      }
+    } catch (e) {
+      console.warn('syncFromDatabase warning:', e);
+    }
+  };
+
   // Synchronize with Supabase Cloud if configured in .env
   useEffect(() => {
     if (isSupabaseConfigured && supabase) {
@@ -409,104 +623,41 @@ function useMediStockStoreInternal() {
         }
       });
 
-      dbService.fetchProducts().then(prods => {
-        if (prods && prods.length > 0) {
-          setProductsState(currentProducts => {
-            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_PRODUCTS, []);
-            const existingIds = new Set(currentProducts.map(p => p.id));
-            const existingSkus = new Set(currentProducts.map(p => p.sku.toLowerCase()));
-            
-            // Only merge truly new products from Supabase that are not already in currentProducts and not in currentDeleted
-            const newFromDb = prods.filter(p => 
-              !currentDeleted.includes(p.id) && 
-              !currentDeleted.includes(p.sku) &&
-              !existingIds.has(p.id) && 
-              !existingSkus.has(p.sku.toLowerCase())
-            );
-            
-            if (newFromDb.length > 0) {
-              const merged = [...currentProducts, ...newFromDb];
-              saveToStorage(STORAGE_KEYS.PRODUCTS, merged);
-              return merged;
-            }
-            return currentProducts;
-          });
-        }
-      });
-      dbService.fetchOrganizations().then(orgs => {
-        if (orgs && orgs.length > 0) setOrganizations(orgs);
-      });
-      dbService.fetchOrders().then(ords => {
-        if (ords && ords.length > 0) setOrders(ords);
-      });
-      dbService.fetchBloodRequests().then(reqs => {
-        if (reqs && reqs.length > 0) {
-          setBloodRequestsState(currentReqs => {
-            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_BLOOD_REQUESTS, KNOWN_TEST_BLOOD_REQUEST_IDS);
-            const existingIds = new Set(currentReqs.map(r => r.id));
-            const newReqs = reqs.filter(r => !currentDeleted.includes(r.id) && !existingIds.has(r.id));
-            if (newReqs.length > 0) {
-              const merged = [...currentReqs, ...newReqs];
-              saveToStorage(STORAGE_KEYS.BLOOD_REQUESTS, merged);
-              return merged;
-            }
-            return currentReqs;
-          });
-        }
-      });
-      dbService.fetchBloodDonors().then(dns => {
-        if (dns && dns.length > 0) {
-          setDonorsState(currentDonors => {
-            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_DONORS, []);
-            const existingIds = new Set(currentDonors.map(d => d.id));
-            const existingEmails = new Set(currentDonors.map(d => d.email.toLowerCase()));
-            const existingPhones = new Set(currentDonors.map(d => d.phone));
-            const newDonors = dns.filter(d => 
-              !currentDeleted.includes(d.id) &&
-              (!d.email || !currentDeleted.includes(d.email.toLowerCase())) &&
-              (!d.phone || !currentDeleted.includes(d.phone)) &&
-              !existingIds.has(d.id) && 
-              !existingEmails.has(d.email.toLowerCase()) &&
-              !existingPhones.has(d.phone)
-            );
-            if (newDonors.length > 0) {
-              const merged = [...currentDonors, ...newDonors];
-              saveToStorage(STORAGE_KEYS.DONORS, merged);
-              return merged;
-            }
-            return currentDonors;
-          });
-        }
-      });
-      dbService.fetchProfiles().then(profs => {
-        if (profs && profs.length > 0) {
-          setUsersState(currentUsers => {
-            const currentDeleted = loadFromStorage<string[]>(STORAGE_KEYS.DELETED_USERS, []);
-            const existingEmails = new Set(currentUsers.map(u => u.email.toLowerCase()));
-            const existingIds = new Set(currentUsers.map(u => u.id));
-            const newUsers = profs.filter(p => 
-              !currentDeleted.includes(p.id) &&
-              !currentDeleted.includes(p.email.toLowerCase()) &&
-              !existingEmails.has(p.email.toLowerCase()) &&
-              !existingIds.has(p.id)
-            );
-            if (newUsers.length > 0) {
-              const merged = [...currentUsers, ...newUsers];
-              saveToStorage(STORAGE_KEYS.USERS, merged);
-              return merged;
-            }
-            return currentUsers;
-          });
-        }
-      });
+      // Initial comprehensive database fetch
+      syncFromDatabase();
+
+      // 3. Supabase Realtime Channel Subscription for instant cross-client updates
+      let realtimeChannel: any = null;
+      try {
+        realtimeChannel = supabase
+          .channel('medistock-realtime-sync')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => syncFromDatabase())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'organizations' }, () => syncFromDatabase())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'blood_requests' }, () => syncFromDatabase())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'blood_donors' }, () => syncFromDatabase())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => syncFromDatabase())
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => syncFromDatabase())
+          .subscribe();
+      } catch (err) {
+        console.warn('Realtime subscription notice:', err);
+      }
+
+      // 4. Background Polling (Every 4000ms) to guarantee cross-browser & cross-device sync
+      const pollTimer = setInterval(() => {
+        syncFromDatabase();
+      }, 4000);
 
       return () => {
         authListener?.subscription.unsubscribe();
+        if (realtimeChannel && supabase) {
+          supabase.removeChannel(realtimeChannel);
+        }
+        clearInterval(pollTimer);
       };
     }
   }, []);
 
-  // Multi-tab real-time storage synchronizer
+  // Multi-tab real-time storage and BroadcastChannel synchronizer
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === STORAGE_KEYS.USERS && e.newValue) {
@@ -527,6 +678,11 @@ function useMediStockStoreInternal() {
       if (e.key === STORAGE_KEYS.DELETED_PRODUCTS && e.newValue) {
         try {
           setDeletedProductIdsState(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.PRODUCTS && e.newValue) {
+        try {
+          setProductsState(JSON.parse(e.newValue));
         } catch {}
       }
       if (e.key === STORAGE_KEYS.ORGANIZATIONS && e.newValue) {
@@ -560,8 +716,44 @@ function useMediStockStoreInternal() {
         } catch {}
       }
     };
+
+    const handleBroadcastMessage = (event: MessageEvent) => {
+      const { type } = event.data || {};
+      if (type === 'USERS_UPDATED' || type === 'ALL_UPDATED') {
+        const fresh = loadFromStorage<UserProfile[] | null>(STORAGE_KEYS.USERS, null);
+        if (fresh) setUsersState(fresh);
+      }
+      if (type === 'PRODUCTS_UPDATED' || type === 'ALL_UPDATED') {
+        const fresh = loadFromStorage<Product[] | null>(STORAGE_KEYS.PRODUCTS, null);
+        if (fresh) setProductsState(fresh);
+      }
+      if (type === 'ORGANIZATIONS_UPDATED' || type === 'ALL_UPDATED') {
+        const fresh = loadFromStorage<Organization[] | null>(STORAGE_KEYS.ORGANIZATIONS, null);
+        if (fresh) setOrganizationsState(fresh);
+      }
+      if (type === 'BLOOD_REQUESTS_UPDATED' || type === 'ALL_UPDATED') {
+        const fresh = loadFromStorage<BloodRequest[] | null>(STORAGE_KEYS.BLOOD_REQUESTS, null);
+        if (fresh) setBloodRequestsState(fresh);
+      }
+      if (type === 'DONORS_UPDATED' || type === 'ALL_UPDATED') {
+        const fresh = loadFromStorage<BloodDonor[] | null>(STORAGE_KEYS.DONORS, null);
+        if (fresh) setDonorsState(fresh);
+      }
+      if (type === 'ORDERS_UPDATED' || type === 'ALL_UPDATED') {
+        const fresh = loadFromStorage<Order[] | null>(STORAGE_KEYS.ORDERS, null);
+        if (fresh) setOrdersState(fresh);
+      }
+      // Re-query database to ensure consistency
+      syncFromDatabase();
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    syncBroadcastChannel?.addEventListener('message', handleBroadcastMessage);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      syncBroadcastChannel?.removeEventListener('message', handleBroadcastMessage);
+    };
   }, []);
 
   // Authentication Methods (Seamless sign-in with auto-provisioning for new accounts)
@@ -598,6 +790,7 @@ function useMediStockStoreInternal() {
       if (isSupabaseConfigured) {
         dbService.updateUserProfile(newUser);
       }
+      broadcastSyncMessage('USERS_UPDATED');
       logActivity('New User Registered on Sign In', `${newUser.name} (${newUser.email})`, 'user');
     } else {
       if (password && found.password && found.password !== password) {
@@ -662,6 +855,7 @@ function useMediStockStoreInternal() {
       if (isSupabaseConfigured) {
         dbService.updateUserProfile(newUser);
       }
+      broadcastSyncMessage('USERS_UPDATED');
       logActivity('Google Account Provisioned', `${newUser.name} (${newUser.email})`, 'user');
     }
 
@@ -722,6 +916,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.updateUserProfile(newUser);
     }
+    broadcastSyncMessage('USERS_UPDATED');
 
     logActivity('New Google User Registered', `${newUser.name} (${newUser.role})`, 'user');
     return newUser;
@@ -761,6 +956,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.updateUserProfile(newUser);
     }
+    broadcastSyncMessage('USERS_UPDATED');
 
     logActivity('New User Registered', `${newUser.name} (${newUser.role})`, 'user');
     return newUser;
@@ -792,8 +988,41 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.updateUserProfile(updatedUser);
     }
+    broadcastSyncMessage('USERS_UPDATED');
     logActivity('Updated Profile Details', updatedUser.name, 'user');
     return updatedUser;
+  };
+
+  // Real-time Dynamic Role Assignment (Admin & Owner Governance)
+  const updateUserRole = (userId: string, newRole: UserRole) => {
+    const target = users.find(u => u.id === userId || u.email.toLowerCase() === userId.toLowerCase());
+    if (!target) return;
+
+    // Safety guard: Root platform owner cannot be changed or demoted
+    if (target.email.toLowerCase() === 'owner@medistock.com' && newRole !== 'owner') {
+      alert('The root platform owner role cannot be modified.');
+      return;
+    }
+
+    const updatedUsers = users.map(u => {
+      if (u.id === target.id || u.email.toLowerCase() === target.email.toLowerCase()) {
+        return { ...u, role: newRole };
+      }
+      return u;
+    });
+    setUsers(updatedUsers);
+
+    if (currentUser && (currentUser.id === target.id || currentUser.email.toLowerCase() === target.email.toLowerCase())) {
+      const updatedCurrent: UserProfile = { ...currentUser, role: newRole };
+      setCurrentUser(updatedCurrent);
+    }
+
+    if (isSupabaseConfigured) {
+      dbService.updateUserRoleInDb(target.id, newRole);
+    }
+
+    broadcastSyncMessage('USERS_UPDATED');
+    logActivity('User Role Changed', `${target.name} (${target.email}) -> ${newRole}`, 'user');
   };
 
   const updateUserSettings = (settings: Partial<UserSettings>) => {
@@ -1010,6 +1239,8 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.saveOrder(newOrder);
     }
+    broadcastSyncMessage('ORDERS_UPDATED');
+    broadcastSyncMessage('PRODUCTS_UPDATED');
 
     // Add real-time notification
     addNotification({
@@ -1056,6 +1287,9 @@ function useMediStockStoreInternal() {
       });
       setProducts(updatedProducts);
     }
+
+    broadcastSyncMessage('ORDERS_UPDATED');
+    broadcastSyncMessage('PRODUCTS_UPDATED');
 
     logActivity(`Order ${orderId} Status Updated`, `New status: ${newStatus}`, 'order');
   };
@@ -1109,6 +1343,23 @@ function useMediStockStoreInternal() {
         setCurrentUser(updatedCurrentUser);
       }
     }
+
+    if (isSupabaseConfigured) {
+      dbService.verifyOrganizationInDb(orgId, status, reason);
+      const linkedOrg = organizations.find(o => o.id === orgId);
+      if (linkedOrg) {
+        const linkedUser = users.find(u => 
+          (linkedOrg.userId && u.id === linkedOrg.userId) || 
+          u.organizationId === orgId || 
+          (linkedOrg.email && u.email.toLowerCase() === linkedOrg.email.toLowerCase())
+        );
+        if (linkedUser) {
+          dbService.updateUserRoleInDb(linkedUser.id, status === 'Approved' ? 'organization' : 'normal_user');
+        }
+      }
+    }
+    broadcastSyncMessage('ORGANIZATIONS_UPDATED');
+    broadcastSyncMessage('USERS_UPDATED');
 
     addNotification({
       title: status === 'Approved' ? 'Organization Approved! 🎉' : 'Organization Application Rejected',
@@ -1176,6 +1427,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.saveOrganization(newOrg);
     }
+    broadcastSyncMessage('ORGANIZATIONS_UPDATED');
 
     addNotification({
       title: 'New Organization Registered',
@@ -1228,6 +1480,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.saveBloodRequest(newReq);
     }
+    broadcastSyncMessage('BLOOD_REQUESTS_UPDATED');
 
     addNotification({
       title: 'Emergency Blood Request Posted 🩸',
@@ -1261,6 +1514,7 @@ function useMediStockStoreInternal() {
     });
 
     setBloodRequests(updatedReqs);
+    broadcastSyncMessage('BLOOD_REQUESTS_UPDATED');
 
     addNotification({
       title: 'Donor Accepted Your Blood Request! 🩸',
@@ -1276,6 +1530,7 @@ function useMediStockStoreInternal() {
   const fulfillBloodRequest = (requestId: string) => {
     const updated = bloodRequests.map(r => r.id === requestId ? { ...r, status: 'Fulfilled' as const } : r);
     setBloodRequests(updated);
+    broadcastSyncMessage('BLOOD_REQUESTS_UPDATED');
     logActivity('Blood Request Fulfilled', `Request ${requestId} marked completed`, 'user');
   };
 
@@ -1292,6 +1547,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.deleteBloodRequest(requestId);
     }
+    broadcastSyncMessage('BLOOD_REQUESTS_UPDATED');
     logActivity('Blood Request Removed', `Request ${requestId} deleted`, 'user');
   };
 
@@ -1307,6 +1563,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.clearAllBloodRequests();
     }
+    broadcastSyncMessage('BLOOD_REQUESTS_UPDATED');
     logActivity('All Blood Requests Cleared', 'Admin/Owner 1-Click Action', 'system');
   };
 
@@ -1324,6 +1581,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       fulfilledIds.forEach(id => dbService.deleteBloodRequest(id));
     }
+    broadcastSyncMessage('BLOOD_REQUESTS_UPDATED');
     logActivity('Fulfilled Blood Requests Cleared', `Removed ${removedCount} completed requests`, 'system');
   };
 
@@ -1363,6 +1621,7 @@ function useMediStockStoreInternal() {
       if (isSupabaseConfigured) {
         dbService.saveBloodDonor(updatedDonor);
       }
+      broadcastSyncMessage('DONORS_UPDATED');
 
       logActivity('Donor Profile Updated', `${currentUser.name} (${data.bloodGroup})`, 'user');
       return updatedDonor;
@@ -1386,6 +1645,7 @@ function useMediStockStoreInternal() {
       if (isSupabaseConfigured) {
         dbService.saveBloodDonor(newDonor);
       }
+      broadcastSyncMessage('DONORS_UPDATED');
 
       logActivity('Donor Registered', `${currentUser.name} (${data.bloodGroup})`, 'user');
       return newDonor;
@@ -1405,6 +1665,7 @@ function useMediStockStoreInternal() {
       return d;
     });
     setDonors(updated);
+    broadcastSyncMessage('DONORS_UPDATED');
   };
 
   // Delete Donor Profile
@@ -1422,6 +1683,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.deleteBloodDonor(donorId);
     }
+    broadcastSyncMessage('DONORS_UPDATED');
     logActivity('Donor Profile Removed', `Donor ID ${donorId}`, 'user');
   };
 
@@ -1440,6 +1702,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.clearAllBloodDonors();
     }
+    broadcastSyncMessage('DONORS_UPDATED');
     logActivity('All Donors Cleared', 'Admin/Owner Action', 'system');
   };
 
@@ -1541,6 +1804,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.saveProduct(newProduct);
     }
+    broadcastSyncMessage('PRODUCTS_UPDATED');
 
     addNotification({
       title: 'New Product Added',
@@ -1571,6 +1835,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.deleteProduct(productId);
     }
+    broadcastSyncMessage('PRODUCTS_UPDATED');
 
     addNotification({
       title: 'Product Removed',
@@ -1630,6 +1895,7 @@ function useMediStockStoreInternal() {
     if (isSupabaseConfigured) {
       dbService.deleteUser(userId);
     }
+    broadcastSyncMessage('USERS_UPDATED');
 
     addNotification({
       title: 'User Account Deleted',
@@ -1763,6 +2029,7 @@ function useMediStockStoreInternal() {
     registerWithGoogle,
     registerUser,
     updateUserProfile,
+    updateUserRole,
     updateUserSettings,
     changePassword,
     logout,
@@ -1822,6 +2089,7 @@ function useMediStockStoreInternal() {
     getDynamicOrgStats,
     dynamicAdminStats,
     dynamicOwnerStats,
+    syncFromDatabase,
   };
 }
 

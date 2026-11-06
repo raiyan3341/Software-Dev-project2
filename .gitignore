@@ -97,4 +97,5 @@ Thumbs.db
 
 # Agent files
 .gemini/
+supabase/.temp/
 

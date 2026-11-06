@@ -216,7 +216,11 @@ export const dbService = {
       };
       if (isUUID) payload.id = org.id;
 
-      const { error } = await supabase.from('organizations').insert(payload);
+      let { error } = await supabase.from('organizations').upsert(payload, { onConflict: 'email' });
+      if (error) {
+        const res = await supabase.from('organizations').insert(payload);
+        error = res.error;
+      }
 
       if (error) {
         console.warn('Supabase saveOrganization notice (using persistent local storage fallback):', error.message);
@@ -225,6 +229,21 @@ export const dbService = {
       return true;
     } catch (err) {
       console.warn('Supabase saveOrganization exception:', err);
+      return false;
+    }
+  },
+
+  // 5b. Verify Organization in Supabase
+  async verifyOrganizationInDb(orgId: string, status: string, reason?: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const { error } = await supabase.from('organizations').update({
+        verification_status: status,
+        rejection_reason: reason || null,
+        updated_at: new Date().toISOString(),
+      }).eq('id', orgId);
+      return !error;
+    } catch {
       return false;
     }
   },
@@ -292,7 +311,14 @@ export const dbService = {
         payload.requester_id = req.requesterId;
       }
 
-      const { error } = await supabase.from('blood_requests').upsert(payload);
+      let { error } = await supabase.from('blood_requests').upsert(payload);
+
+      // If foreign key constraint failed because profiles table doesn't have requester_id, retry without it
+      if (error && (error.code === '23503' || error.message.includes('foreign key'))) {
+        delete payload.requester_id;
+        const retry = await supabase.from('blood_requests').upsert(payload);
+        error = retry.error;
+      }
 
       if (error) {
         console.warn('Failed to insert blood request into Supabase:', error.message);
@@ -384,7 +410,15 @@ export const dbService = {
       if (donor.userId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(donor.userId)) {
         payload.user_id = donor.userId;
       }
-      const { error } = await supabase.from('blood_donors').upsert(payload);
+      let { error } = await supabase.from('blood_donors').upsert(payload);
+
+      // If foreign key constraint failed because profiles table doesn't have user_id, retry without it
+      if (error && (error.code === '23503' || error.message.includes('foreign key'))) {
+        delete payload.user_id;
+        const retry = await supabase.from('blood_donors').upsert(payload);
+        error = retry.error;
+      }
+
       if (error) {
         console.warn('Failed to upsert blood donor to Supabase:', error.message);
         return false;
@@ -524,14 +558,22 @@ export const dbService = {
   async updateUserProfile(user: UserProfile): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const { error } = await supabase.from('profiles').upsert({
-        id: user.id,
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user.id);
+      const payload: any = {
         email: user.email,
         full_name: user.name,
         avatar_url: user.avatar,
+        role: user.role,
         phone: user.phone || null,
         updated_at: new Date().toISOString(),
-      });
+      };
+      if (isUUID) payload.id = user.id;
+
+      let { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'email' });
+      if (error) {
+        const res = await supabase.from('profiles').insert(payload);
+        error = res.error;
+      }
       if (error) {
         console.warn('Supabase updateUserProfile notice:', error.message);
         return false;
@@ -539,6 +581,21 @@ export const dbService = {
       return true;
     } catch (err) {
       console.warn('Supabase updateUserProfile exception:', err);
+      return false;
+    }
+  },
+
+  // 7c. Update User Role in Supabase
+  async updateUserRoleInDb(userId: string, role: string): Promise<boolean> {
+    if (!isSupabaseConfigured || !supabase) return false;
+    try {
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+      let query = isUUID 
+        ? supabase.from('profiles').update({ role, updated_at: new Date().toISOString() }).eq('id', userId)
+        : supabase.from('profiles').update({ role, updated_at: new Date().toISOString() }).eq('email', userId);
+      const { error } = await query;
+      return !error;
+    } catch {
       return false;
     }
   },
