@@ -168,6 +168,9 @@ export const dbService = {
         .single();
 
       if (orderError) {
+        if (orderError.code === '42501' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('supabase_rls_detected'));
+        }
         console.warn('Supabase saveOrder notice (using persistent local storage fallback):', orderError.message);
         return false;
       }
@@ -223,6 +226,9 @@ export const dbService = {
       }
 
       if (error) {
+        if (error.code === '42501' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('supabase_rls_detected'));
+        }
         console.warn('Supabase saveOrganization notice (using persistent local storage fallback):', error.message);
         return false;
       }
@@ -484,6 +490,9 @@ export const dbService = {
       }
       const { error } = await supabase.from('products').upsert(payload, { onConflict: 'sku' });
       if (error) {
+        if (error.code === '42501' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('supabase_rls_detected'));
+        }
         console.warn('Supabase saveProduct notice (using persistent local storage fallback):', error.message);
         return false;
       }
@@ -575,6 +584,9 @@ export const dbService = {
         error = res.error;
       }
       if (error) {
+        if (error.code === '42501' && typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('supabase_rls_detected'));
+        }
         console.warn('Supabase updateUserProfile notice:', error.message);
         return false;
       }

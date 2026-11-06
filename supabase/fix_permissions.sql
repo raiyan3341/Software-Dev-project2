@@ -69,3 +69,4 @@ INSERT INTO public.profiles (id, email, full_name, role, status) VALUES
 ('00000000-0000-0000-0000-000000000001', 'owner@medistock.com', 'MediStock Platform Owner', 'owner', 'active'),
 ('00000000-0000-0000-0000-000000000002', 'admin@medistock.com', 'Dr. Tariqul Islam', 'admin', 'active')
 ON CONFLICT (email) DO UPDATE SET role = EXCLUDED.role;
+

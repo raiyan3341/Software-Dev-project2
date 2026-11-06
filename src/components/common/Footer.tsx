@@ -160,6 +160,10 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
 
         <div className="mt-12 pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© 2026 MediStock Platform Ltd. All rights reserved.</p>
+          <div className="flex items-center gap-2 px-3 py-1 bg-slate-950/80 rounded-full border border-slate-800">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span className="text-emerald-400 font-mono text-[11px] font-semibold">Supabase PostgreSQL Cloud: Live Connected</span>
+          </div>
           <div className="flex items-center gap-6">
             <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-400 cursor-pointer">Terms of Healthcare Service</span>

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, ExternalLink, X } from 'lucide-react';
 import { Navbar } from './components/common/Navbar';
 import { Footer } from './components/common/Footer';
 import { HomePage } from './components/home/HomePage';
@@ -74,6 +75,13 @@ export default function App() {
   };
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showRlsNotice, setShowRlsNotice] = useState(false);
+
+  useEffect(() => {
+    const onRlsBlocked = () => setShowRlsNotice(true);
+    window.addEventListener('supabase_rls_detected', onRlsBlocked);
+    return () => window.removeEventListener('supabase_rls_detected', onRlsBlocked);
+  }, []);
 
   // Auto-detect return from Google OAuth
   React.useEffect(() => {
@@ -138,6 +146,35 @@ export default function App() {
         onOpenLogin={() => handleOpenLogin('signin')}
         onOpenNotifications={() => setIsNotificationOpen(true)}
       />
+
+      {/* Supabase PostgreSQL RLS Notice Banner */}
+      {showRlsNotice && (
+        <div className="bg-amber-600 text-white px-4 py-2.5 text-xs sm:text-sm font-medium flex items-center justify-between gap-3 shadow-md z-50 animate-in fade-in">
+          <div className="flex items-center gap-2 max-w-4xl">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-200" />
+            <span>
+              <strong>Supabase Database Lock:</strong> PostgreSQL Row-Level Security (RLS) is currently preventing table writes. Run the 1-click script in Supabase SQL Editor to unlock full real-time database synchronization.
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="https://supabase.com/dashboard/project/zzsudxjzrsoyhnpwlqeb/sql/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3 py-1 bg-white text-amber-900 font-bold text-xs rounded-lg hover:bg-amber-50 flex items-center gap-1 transition-colors"
+            >
+              <span>Open SQL Editor</span>
+              <ExternalLink className="w-3 h-3" />
+            </a>
+            <button
+              onClick={() => setShowRlsNotice(false)}
+              className="p-1 hover:bg-amber-700 rounded-md transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main View Container */}
       <main className="flex-1">
