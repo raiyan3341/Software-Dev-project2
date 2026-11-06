@@ -64,6 +64,14 @@ export default function App() {
   });
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [loginModalMode, setLoginModalMode] = useState<'signin' | 'signup'>('signin');
+  const [loginPostRedirect, setLoginPostRedirect] = useState<string | null>(null);
+
+  const handleOpenLogin = (mode: 'signin' | 'signup' = 'signin', redirect?: string) => {
+    setLoginModalMode(mode);
+    setLoginPostRedirect(redirect || null);
+    setIsLoginOpen(true);
+  };
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
@@ -127,7 +135,7 @@ export default function App() {
         currentView={currentView}
         onNavigate={handleNavigate}
         onOpenCart={() => setIsCartOpen(true)}
-        onOpenLogin={() => setIsLoginOpen(true)}
+        onOpenLogin={() => handleOpenLogin('signin')}
         onOpenNotifications={() => setIsNotificationOpen(true)}
       />
 
@@ -154,6 +162,7 @@ export default function App() {
         {currentView === 'register-org' && (
           <OrganizationRegisterPage
             onNavigate={handleNavigate}
+            onOpenLogin={handleOpenLogin}
           />
         )}
 
@@ -183,7 +192,7 @@ export default function App() {
 
         {/* Screen 5 & Screen 9: Organization Dashboard & Invoice View */}
         {currentView === 'org-dashboard' && (
-          currentUser && activeRole === 'organization' ? (
+          currentUser && (activeRole === 'organization' || currentUser.organizationId) ? (
             <OrganizationDashboardPage
               onNavigate={handleNavigate}
               onOpenProductModal={(product) => setSelectedProduct(product)}
@@ -192,7 +201,7 @@ export default function App() {
             <AccessRestricted
               requiredRole="organization"
               onNavigate={handleNavigate}
-              onOpenLogin={() => setIsLoginOpen(true)}
+              onOpenLogin={() => handleOpenLogin('signin')}
             />
           )
         )}
@@ -286,12 +295,18 @@ export default function App() {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
         onNavigate={handleNavigate}
+        onOpenLogin={handleOpenLogin}
       />
 
       <LoginModal
         isOpen={isLoginOpen}
-        onClose={() => setIsLoginOpen(false)}
+        onClose={() => {
+          setIsLoginOpen(false);
+          setLoginPostRedirect(null);
+        }}
         onNavigate={handleNavigate}
+        initialMode={loginModalMode}
+        postAuthRedirect={loginPostRedirect}
       />
 
       <ProductDetailModal

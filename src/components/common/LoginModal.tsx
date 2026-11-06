@@ -8,12 +8,32 @@ interface LoginModalProps {
   isOpen: boolean;
   onClose: () => void;
   onNavigate: (view: string) => void;
+  initialMode?: 'signin' | 'signup';
+  postAuthRedirect?: string | null;
 }
 
-export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate }) => {
+export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavigate, initialMode, postAuthRedirect }) => {
   const { login, loginWithGoogle, registerWithGoogle, registerUser } = useMediStockStore();
 
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
+  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode || 'signin');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialMode) setMode(initialMode);
+      setError(null);
+    }
+  }, [isOpen, initialMode]);
+
+  const navigateAfterAuth = (user: { role: string }) => {
+    if (postAuthRedirect) {
+      onNavigate(postAuthRedirect);
+      return;
+    }
+    if (user.role === 'normal_user') onNavigate('user-dashboard');
+    else if (user.role === 'organization') onNavigate('org-dashboard');
+    else if (user.role === 'admin') onNavigate('admin-dashboard');
+    else if (user.role === 'owner') onNavigate('owner-dashboard');
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -57,10 +77,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
       setLoading(false);
       onClose();
 
-      if (user.role === 'normal_user') onNavigate('user-dashboard');
-      else if (user.role === 'organization') onNavigate('org-dashboard');
-      else if (user.role === 'admin') onNavigate('admin-dashboard');
-      else if (user.role === 'owner') onNavigate('owner-dashboard');
+      navigateAfterAuth(user);
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'No account found with this email. Please Sign Up first.');
@@ -96,8 +113,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
       setLoading(false);
       onClose();
 
-      if (user.role === 'organization') onNavigate('register-org');
-      else onNavigate('user-dashboard');
+      navigateAfterAuth(user);
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Registration failed.');
@@ -115,10 +131,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
       setLoading(false);
       onClose();
 
-      if (user.role === 'normal_user') onNavigate('user-dashboard');
-      else if (user.role === 'organization') onNavigate('org-dashboard');
-      else if (user.role === 'admin') onNavigate('admin-dashboard');
-      else if (user.role === 'owner') onNavigate('owner-dashboard');
+      navigateAfterAuth(user);
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'No account found with this Google email. You must Sign Up first before signing in.');
@@ -139,8 +152,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
       setLoading(false);
       onClose();
 
-      if (user.role === 'organization') onNavigate('register-org');
-      else onNavigate('user-dashboard');
+      navigateAfterAuth(user);
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Google account registration failed.');

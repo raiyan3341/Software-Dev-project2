@@ -244,6 +244,69 @@ export const OrganizationDashboardPage: React.FC<OrganizationDashboardPageProps>
             </div>
           </div>
 
+          {/* Organization Verification Status Banner */}
+          {currentOrg.verificationStatus === 'Pending' && (
+            <div className="p-4 sm:p-5 bg-amber-50 rounded-3xl border border-amber-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-amber-900">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h4 className="font-bold text-sm sm:text-base">Facility Verification Status: PENDING DGHS REVIEW</h4>
+                    <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-extrabold uppercase">
+                      Action Required
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+                    Your institutional license documents have been submitted. MediStock Compliance Administrators are verifying your credentials. Wholesale medicine restock ordering will unlock automatically upon verification.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onNavigate('products')}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 transition-colors"
+              >
+                Browse Medicines
+              </button>
+            </div>
+          )}
+
+          {currentOrg.verificationStatus === 'Rejected' && (
+            <div className="p-4 sm:p-5 bg-rose-50 rounded-3xl border border-rose-200/90 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-rose-900">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
+                  <AlertCircle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-sm sm:text-base">Facility Registration Rejected</h4>
+                  <p className="text-xs text-rose-700 mt-0.5">
+                    Reason: {currentOrg.rejectionReason || 'Uploaded licenses could not be verified by DGHS.'} Please re-apply with valid trade license.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => onNavigate('register-org')}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shrink-0 transition-colors"
+              >
+                Re-Apply License
+              </button>
+            </div>
+          )}
+
+          {currentOrg.verificationStatus === 'Approved' && (
+            <div className="p-3.5 px-4 bg-emerald-50 rounded-2xl border border-emerald-200 text-xs text-emerald-900 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-bold">Verified Healthcare Institution: {currentOrg.name}</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                  DGHS Authorized
+                </span>
+              </div>
+              <span className="text-[11px] text-emerald-700 font-semibold hidden sm:inline">Restock Ordering Enabled</span>
+            </div>
+          )}
+
           {/* 3 Stat Cards matching Project.png Screen 5 */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
             

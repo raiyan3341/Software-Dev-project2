@@ -18,19 +18,20 @@ import { OrganizationType } from '../../types';
 
 interface OrganizationRegisterPageProps {
   onNavigate: (view: string) => void;
+  onOpenLogin?: (mode?: 'signin' | 'signup', redirect?: string) => void;
 }
 
-export const OrganizationRegisterPage: React.FC<OrganizationRegisterPageProps> = ({ onNavigate }) => {
-  const { registerOrganization } = useMediStockStore();
+export const OrganizationRegisterPage: React.FC<OrganizationRegisterPageProps> = ({ onNavigate, onOpenLogin }) => {
+  const { registerOrganization, currentUser } = useMediStockStore();
 
   const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   // Form Fields matching Project.png Screen 4
   const [name, setName] = useState('');
   const [type, setType] = useState<OrganizationType | ''>('');
-  const [representative, setRepresentative] = useState('');
-  const [email, setEmail] = useState('');
-  const [phone, setPhone] = useState('');
+  const [representative, setRepresentative] = useState(currentUser?.name || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('Dhaka');
 
@@ -106,6 +107,48 @@ export const OrganizationRegisterPage: React.FC<OrganizationRegisterPageProps> =
     setCreatedOrgId(newOrg.id);
     setIsSubmitted(true);
   };
+
+  // If not logged in, require sign up / sign in with their own password first
+  if (!currentUser) {
+    return (
+      <div className="min-h-[75vh] bg-slate-50 py-16 px-4 flex items-center justify-center">
+        <div className="max-w-md w-full bg-white rounded-3xl p-8 sm:p-10 border border-slate-200/90 shadow-xl text-center space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center mx-auto shadow-sm">
+            <Building2 className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <span className="px-3 py-1 rounded-full bg-teal-50 text-teal-800 text-[11px] font-bold uppercase tracking-wider border border-teal-200">
+              Healthcare Facility Portal
+            </span>
+            <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              Sign In or Sign Up Required
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              To register a hospital, pharmacy, or clinic, please sign in or create an account with your own password first. This ensures you maintain full secure access to your organization dashboard.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <button
+              onClick={() => onOpenLogin?.('signup', 'register-org')}
+              className="w-full py-3.5 px-4 bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white rounded-xl text-sm font-bold shadow-md shadow-teal-600/20 transition-all flex items-center justify-center gap-2"
+            >
+              <span>Create Account (Sign Up)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+
+            <button
+              onClick={() => onOpenLogin?.('signin', 'register-org')}
+              className="w-full py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition-colors"
+            >
+              Already have an account? Sign In
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // If successfully submitted, show verification pending confirmation
   if (isSubmitted) {

@@ -586,6 +586,10 @@ function useMediStockStoreInternal() {
         }
       : orgOrId;
 
+    if (org.verificationStatus !== 'Approved') {
+      throw new Error(`Cannot place order: Organization "${org.name}" is ${org.verificationStatus.toLowerCase()} approval by DGHS Admin. Restock orders require verified healthcare facility credentials.`);
+    }
+
     const subtotal = activeCart.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
     const orderNum = `#ORD-${Math.floor(1000 + Math.random() * 9000)}`;
 
@@ -699,10 +703,12 @@ function useMediStockStoreInternal() {
     logActivity(`Order ${orderId} Status Updated`, `New status: ${newStatus}`, 'order');
   };
 
-  // Organization verification
+  // Organization verification (Admin Approval / Rejection)
   const verifyOrganization = (orgId: string, status: 'Approved' | 'Rejected', reason?: string) => {
-    const updated = organizations.map(o => {
+    let targetOrgName = 'Organization';
+    const updatedOrgs = organizations.map(o => {
       if (o.id === orgId) {
+        targetOrgName = o.name;
         return {
           ...o,
           verificationStatus: status,
@@ -711,7 +717,46 @@ function useMediStockStoreInternal() {
       }
       return o;
     });
-    setOrganizations(updated);
+    setOrganizations(updatedOrgs);
+
+    const targetOrg = organizations.find(o => o.id === orgId);
+
+    // If Approved: upgrade the linked user's role to 'organization'!
+    // If Rejected: ensure user's role remains 'normal_user'!
+    const updatedUsers = users.map(u => {
+      const isLinked = u.organizationId === orgId || (targetOrg && u.email.toLowerCase() === targetOrg.email.toLowerCase());
+      if (isLinked) {
+        return {
+          ...u,
+          organizationId: orgId,
+          role: (status === 'Approved' ? 'organization' : 'normal_user') as UserRole,
+        };
+      }
+      return u;
+    });
+    setUsers(updatedUsers);
+
+    // Also update currentUser if it matches the organization
+    if (currentUser) {
+      const isCurrentLinked = currentUser.organizationId === orgId || (targetOrg && currentUser.email.toLowerCase() === targetOrg.email.toLowerCase());
+      if (isCurrentLinked) {
+        const updatedCurrentUser: UserProfile = {
+          ...currentUser,
+          organizationId: orgId,
+          role: (status === 'Approved' ? 'organization' : 'normal_user') as UserRole,
+        };
+        setCurrentUser(updatedCurrentUser);
+      }
+    }
+
+    addNotification({
+      title: status === 'Approved' ? 'Organization Approved! 🎉' : 'Organization Application Rejected',
+      message: status === 'Approved'
+        ? `Congratulations! ${targetOrgName} has been approved by Admin. You can now place wholesale medical restock orders.`
+        : `Your application for ${targetOrgName} was rejected: ${reason || 'Documents could not be verified'}.`,
+      type: 'order',
+    });
+
     logActivity(`Organization Verification`, `Org ID: ${orgId} -> ${status}`, 'organization');
   };
 
@@ -751,22 +796,20 @@ function useMediStockStoreInternal() {
       createdAt: new Date().toISOString().split('T')[0],
     };
 
-    const newOrgUser: UserProfile = {
-      id: `user-org-${Date.now()}`,
-      name: data.representative,
-      email: data.email,
-      password: 'password123',
-      avatar: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=120&auto=format&fit=crop&q=80',
-      role: 'organization',
-      organizationId: newOrgId,
-      status: 'active',
-      phone: data.phone,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-
     setOrganizations([newOrg, ...organizations]);
-    setUsers([...users, newOrgUser]);
-    setCurrentUser(newOrgUser);
+
+    // Link organizationId to currentUser without dummy passwords and WITHOUT auto-promoting to 'organization' role!
+    // The user's role remains 'normal_user' until an administrator reviews and approves the application.
+    if (currentUser) {
+      const updatedUser: UserProfile = {
+        ...currentUser,
+        organizationId: newOrgId,
+        // Role stays normal_user until Admin verification approval
+      };
+      setCurrentUser(updatedUser);
+      const updatedUsers = users.map(u => u.id === currentUser.id ? updatedUser : u);
+      setUsers(updatedUsers);
+    }
 
     if (isSupabaseConfigured) {
       dbService.saveOrganization(newOrg);
