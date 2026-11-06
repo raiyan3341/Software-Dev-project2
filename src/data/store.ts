@@ -255,7 +255,7 @@ function useMediStockStoreInternal() {
       const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
           const authUser = session.user;
-          const userEmail = authUser.email || '';
+          const userEmail = (authUser.email || '').toLowerCase();
           const userProfile: UserProfile = {
             id: authUser.id,
             name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || userEmail.split('@')[0] || 'Google User',
@@ -267,6 +267,17 @@ function useMediStockStoreInternal() {
           };
           setCurrentUserState(userProfile);
           saveToStorage(STORAGE_KEYS.CURRENT_USER, userProfile);
+
+          // Real-time synchronization into users directory
+          setUsersState(currentUsers => {
+            const exists = currentUsers.find(u => u.email.toLowerCase() === userEmail);
+            if (!exists) {
+              const updated = [...currentUsers, userProfile];
+              saveToStorage(STORAGE_KEYS.USERS, updated);
+              return updated;
+            }
+            return currentUsers;
+          });
         }
       });
 
@@ -274,7 +285,7 @@ function useMediStockStoreInternal() {
       supabase.auth.getSession().then(({ data: { session } }) => {
         if (session?.user) {
           const authUser = session.user;
-          const userEmail = authUser.email || '';
+          const userEmail = (authUser.email || '').toLowerCase();
           const userProfile: UserProfile = {
             id: authUser.id,
             name: authUser.user_metadata?.full_name || authUser.user_metadata?.name || userEmail.split('@')[0] || 'Google User',
@@ -286,6 +297,16 @@ function useMediStockStoreInternal() {
           };
           setCurrentUserState(userProfile);
           saveToStorage(STORAGE_KEYS.CURRENT_USER, userProfile);
+
+          setUsersState(currentUsers => {
+            const exists = currentUsers.find(u => u.email.toLowerCase() === userEmail);
+            if (!exists) {
+              const updated = [...currentUsers, userProfile];
+              saveToStorage(STORAGE_KEYS.USERS, updated);
+              return updated;
+            }
+            return currentUsers;
+          });
         }
       });
 
@@ -348,6 +369,20 @@ function useMediStockStoreInternal() {
           });
         }
       });
+      dbService.fetchProfiles().then(profs => {
+        if (profs && profs.length > 0) {
+          setUsersState(currentUsers => {
+            const existingEmails = new Set(currentUsers.map(u => u.email.toLowerCase()));
+            const newUsers = profs.filter(p => !existingEmails.has(p.email.toLowerCase()));
+            if (newUsers.length > 0) {
+              const merged = [...currentUsers, ...newUsers];
+              saveToStorage(STORAGE_KEYS.USERS, merged);
+              return merged;
+            }
+            return currentUsers;
+          });
+        }
+      });
 
       return () => {
         authListener?.subscription.unsubscribe();
@@ -355,18 +390,72 @@ function useMediStockStoreInternal() {
     }
   }, []);
 
-  // Authentication Methods (Strict: Real-world authentication requires registration first)
+  // Multi-tab real-time storage synchronizer
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === STORAGE_KEYS.USERS && e.newValue) {
+        try {
+          setUsersState(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.CURRENT_USER) {
+        try {
+          setCurrentUserState(e.newValue ? JSON.parse(e.newValue) : null);
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.ORGANIZATIONS && e.newValue) {
+        try {
+          setOrganizationsState(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.ORDERS && e.newValue) {
+        try {
+          setOrdersState(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.BLOOD_REQUESTS && e.newValue) {
+        try {
+          setBloodRequestsState(JSON.parse(e.newValue));
+        } catch {}
+      }
+      if (e.key === STORAGE_KEYS.DONORS && e.newValue) {
+        try {
+          setDonorsState(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Authentication Methods (Seamless sign-in with auto-provisioning for new accounts)
   const login = (email: string, password?: string): UserProfile => {
     if (!email || !email.trim()) {
       throw new Error('Please enter your email address.');
     }
     const cleanEmail = email.trim().toLowerCase();
-    const found = users.find(u => u.email.toLowerCase() === cleanEmail);
+    let found = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!found) {
-      throw new Error('No account found with this email. Please switch to the Sign Up tab to register first.');
-    }
-    if (password && found.password && found.password !== password) {
-      throw new Error('Incorrect password. Please verify your credentials and try again.');
+      // Auto-provision new user account seamlessly when signing in with a new email
+      const defaultName = cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const newUser: UserProfile = {
+        id: generateUUID(),
+        name: defaultName,
+        email: cleanEmail,
+        password: password || 'password123',
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+        role: 'normal_user',
+        status: 'active',
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      const updatedUsers = [...users, newUser];
+      setUsers(updatedUsers);
+      found = newUser;
+      logActivity('New User Registered on Sign In', `${newUser.name} (${newUser.email})`, 'user');
+    } else {
+      if (password && found.password && found.password !== password) {
+        throw new Error('Incorrect password. Please verify your credentials and try again.');
+      }
     }
 
     // Dynamic Role Resolution: Check if user has an approved organization
@@ -394,14 +483,28 @@ function useMediStockStoreInternal() {
     return userToSet;
   };
 
-  const loginWithGoogle = (email: string): UserProfile => {
+  const loginWithGoogle = (email: string, name?: string): UserProfile => {
     if (!email || !email.trim()) {
       throw new Error('Please provide your Google email address.');
     }
     const cleanEmail = email.trim().toLowerCase();
-    const user = users.find(u => u.email.toLowerCase() === cleanEmail);
+    let user = users.find(u => u.email.toLowerCase() === cleanEmail);
     if (!user) {
-      throw new Error('No account found with this Google email. You cannot sign in without registering first. Please switch to the Sign Up tab to create your account.');
+      // Auto-provision Google SSO account seamlessly
+      const defaultName = name || cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+      const newUser: UserProfile = {
+        id: generateUUID(),
+        name: defaultName,
+        email: cleanEmail,
+        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+        role: 'normal_user',
+        status: 'active',
+        createdAt: new Date().toISOString().split('T')[0],
+      };
+      const updatedUsers = [...users, newUser];
+      setUsers(updatedUsers);
+      user = newUser;
+      logActivity('Google Account Provisioned', `${newUser.name} (${newUser.email})`, 'user');
     }
 
     // Dynamic Role Resolution: Check if user has an approved organization
@@ -439,7 +542,7 @@ function useMediStockStoreInternal() {
       throw new Error('An account with this Google email already exists. Please switch to Sign In to log in.');
     }
     const newUser: UserProfile = {
-      id: `user-g-${Date.now()}`,
+      id: generateUUID(),
       name: data.name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
       avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
@@ -469,7 +572,7 @@ function useMediStockStoreInternal() {
       throw new Error('An account with this email already exists. Please switch to Sign In.');
     }
     const newUser: UserProfile = {
-      id: `user-${Date.now()}`,
+      id: generateUUID(),
       name: data.name.trim(),
       email: cleanEmail,
       password: data.password || 'password123',

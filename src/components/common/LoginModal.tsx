@@ -273,7 +273,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
                     />
                   </div>
                   <p className="text-[11px] text-slate-500 leading-snug">
-                    Note: If this Google email has not been signed up before, sign in will be rejected.
+                    One-click Google authentication. New Google accounts are automatically created and registered into the system.
                   </p>
                   <button
                     type="submit"

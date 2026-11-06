@@ -488,7 +488,39 @@ export const dbService = {
     }
   },
 
-  // 7. Update User Profile in Supabase
+  // 7. Fetch Profiles from Supabase
+  async fetchProfiles(): Promise<UserProfile[] | null> {
+    if (!isSupabaseConfigured || !supabase) return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*');
+
+      if (error) {
+        console.warn('Supabase fetchProfiles error:', error.message);
+        return null;
+      }
+
+      if (data && data.length > 0) {
+        return data.map((row: any) => ({
+          id: row.id,
+          name: row.full_name || row.email?.split('@')[0] || 'User',
+          email: row.email,
+          avatar: row.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+          role: (row.role || 'normal_user') as any,
+          status: 'active' as const,
+          phone: row.phone || undefined,
+          createdAt: row.created_at ? row.created_at.split('T')[0] : '2025-01-01',
+        }));
+      }
+      return null;
+    } catch (err) {
+      console.warn('Supabase error in fetchProfiles:', err);
+      return null;
+    }
+  },
+
+  // 7b. Update User Profile in Supabase
   async updateUserProfile(user: UserProfile): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
