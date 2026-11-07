@@ -357,45 +357,59 @@ function useMediStockStoreInternal() {
   // ============================================================================
   // AUTHENTICATION & USER MANAGEMENT
   // ============================================================================
-  const login = (email: string, password?: string): UserProfile => {
+  const login = async (email: string, password?: string): Promise<UserProfile> => {
     if (!email || !email.trim()) {
       throw new Error('Please enter your email address.');
     }
     const cleanEmail = email.trim().toLowerCase();
     let found = users.find(u => u.email.toLowerCase() === cleanEmail);
 
-    if (!found) {
-      // Auto-provision new account
-      const defaultName = cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const newUser: UserProfile = {
-        id: generateUUID(),
-        name: defaultName,
-        email: cleanEmail,
-        password: password || 'password123',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-        role: 'normal_user',
-        status: 'active',
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      const updated = [...users, newUser];
-      setUsers(updated);
-      found = newUser;
+    // If not found in memory, query database directly to ensure freshest state
+    if (!found && isSupabaseConfigured && supabase) {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
 
-      if (isSupabaseConfigured) {
-        dbService.saveProfile(newUser);
+        if (data) {
+          found = {
+            id: data.id,
+            name: data.full_name,
+            email: data.email,
+            password: data.password || 'password123',
+            avatar: data.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+            role: (data.role || 'normal_user') as UserRole,
+            status: (data.status || 'active') as 'active' | 'suspended',
+            organizationId: data.organization_id || undefined,
+            phone: data.phone || undefined,
+            createdAt: data.created_at ? data.created_at.split('T')[0] : '2025-01-01',
+          };
+          setUsers([...users.filter(u => u.email.toLowerCase() !== cleanEmail), found]);
+        }
+      } catch (err) {
+        console.warn('Profile direct check error:', err);
       }
-      broadcastSyncMessage('USER_REGISTERED');
-      logActivity('New Account Created', `${newUser.name} (${newUser.email})`, 'user');
-    } else {
-      if (password && found.password && found.password !== password) {
-        throw new Error('Incorrect password. Please verify your credentials and try again.');
-      }
+    }
+
+    // STRICT: Do not auto-create an account. User must register first!
+    if (!found) {
+      throw new Error('No account found with this email. Please Sign Up first before signing in.');
+    }
+
+    if (found.status === 'suspended') {
+      throw new Error('Your account has been suspended. Please contact platform support.');
+    }
+
+    if (password && found.password && found.password !== password) {
+      throw new Error('Incorrect password. Please verify your credentials and try again.');
     }
 
     // Role Resolution: check if user has approved organization
     const linkedOrg = organizations.find(
-      o => (o.userId && o.userId === found.id) ||
-           o.id === found.organizationId ||
+      o => (o.userId && o.userId === found!.id) ||
+           o.id === found!.organizationId ||
            (o.email && o.email.toLowerCase() === cleanEmail)
     );
     let resolvedRole = found.role;
@@ -418,38 +432,54 @@ function useMediStockStoreInternal() {
     return userToSet;
   };
 
-  const loginWithGoogle = (email: string, name?: string): UserProfile => {
+  const loginWithGoogle = async (email: string): Promise<UserProfile> => {
     if (!email || !email.trim()) {
       throw new Error('Please provide your Google email address.');
     }
     const cleanEmail = email.trim().toLowerCase();
     let user = users.find(u => u.email.toLowerCase() === cleanEmail);
 
-    if (!user) {
-      const defaultName = name || cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-      const newUser: UserProfile = {
-        id: generateUUID(),
-        name: defaultName,
-        email: cleanEmail,
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
-        role: 'normal_user',
-        status: 'active',
-        createdAt: new Date().toISOString().split('T')[0],
-      };
-      const updated = [...users, newUser];
-      setUsers(updated);
-      user = newUser;
+    // If not found in local memory, check database directly
+    if (!user && isSupabaseConfigured && supabase) {
+      try {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('email', cleanEmail)
+          .maybeSingle();
 
-      if (isSupabaseConfigured) {
-        dbService.saveProfile(newUser);
+        if (data) {
+          user = {
+            id: data.id,
+            name: data.full_name,
+            email: data.email,
+            password: data.password || 'password123',
+            avatar: data.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+            role: (data.role || 'normal_user') as UserRole,
+            status: (data.status || 'active') as 'active' | 'suspended',
+            organizationId: data.organization_id || undefined,
+            phone: data.phone || undefined,
+            createdAt: data.created_at ? data.created_at.split('T')[0] : '2025-01-01',
+          };
+          setUsers([...users.filter(u => u.email.toLowerCase() !== cleanEmail), user]);
+        }
+      } catch (err) {
+        console.warn('Google profile lookup error:', err);
       }
-      broadcastSyncMessage('USER_REGISTERED');
-      logActivity('Google Account Provisioned', `${newUser.name} (${newUser.email})`, 'user');
+    }
+
+    // STRICT: Must have signed up first!
+    if (!user) {
+      throw new Error('No account found with this Google email. You must Sign Up first before signing in.');
+    }
+
+    if (user.status === 'suspended') {
+      throw new Error('Your account has been suspended. Please contact platform support.');
     }
 
     const linkedOrg = organizations.find(
-      o => (o.userId && o.userId === user.id) ||
-           o.id === user.organizationId ||
+      o => (o.userId && o.userId === user!.id) ||
+           o.id === user!.organizationId ||
            (o.email && o.email.toLowerCase() === cleanEmail)
     );
     let resolvedRole = user.role;
@@ -472,16 +502,68 @@ function useMediStockStoreInternal() {
     return userToSet;
   };
 
-  const registerWithGoogle = (data: { email: string; name?: string; role?: UserRole }): UserProfile => {
-    return loginWithGoogle(data.email, data.name);
+  const registerWithGoogle = async (data: { email: string; name?: string; role?: UserRole }): Promise<UserProfile> => {
+    if (!data.email || !data.email.trim()) {
+      throw new Error('Please enter a valid Google email address.');
+    }
+    const cleanEmail = data.email.trim().toLowerCase();
+
+    // Check if account already exists
+    let existing = users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (!existing && isSupabaseConfigured && supabase) {
+      try {
+        const { data: dbData } = await supabase.from('profiles').select('id, email').eq('email', cleanEmail).maybeSingle();
+        if (dbData) {
+          existing = { id: dbData.id, email: dbData.email } as any;
+        }
+      } catch {}
+    }
+
+    if (existing) {
+      throw new Error('An account with this Google email already exists. Please switch to Sign In.');
+    }
+
+    const defaultName = (data.name && data.name.trim()) || cleanEmail.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    const newUser: UserProfile = {
+      id: generateUUID(),
+      name: defaultName,
+      email: cleanEmail,
+      password: 'password123',
+      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+      role: data.role || 'normal_user',
+      status: 'active',
+      createdAt: new Date().toISOString().split('T')[0],
+    };
+
+    const updated = [...users, newUser];
+    setUsers(updated);
+    setCurrentUser(newUser);
+
+    if (isSupabaseConfigured) {
+      await dbService.saveProfile(newUser);
+    }
+    broadcastSyncMessage('USER_REGISTERED');
+    logActivity('Google Account Registered', `${newUser.name} (${newUser.role})`, 'user');
+    return newUser;
   };
 
-  const registerUser = (data: { name: string; email: string; password?: string; role?: UserRole; phone?: string }): UserProfile => {
+  const registerUser = async (data: { name: string; email: string; password?: string; role?: UserRole; phone?: string }): Promise<UserProfile> => {
     if (!data.email || !data.email.trim()) {
       throw new Error('Please enter a valid email address.');
     }
     const cleanEmail = data.email.trim().toLowerCase();
-    const existing = users.find(u => u.email.toLowerCase() === cleanEmail);
+    
+    // Check if account already exists
+    let existing = users.find(u => u.email.toLowerCase() === cleanEmail);
+    if (!existing && isSupabaseConfigured && supabase) {
+      try {
+        const { data: dbData } = await supabase.from('profiles').select('id, email').eq('email', cleanEmail).maybeSingle();
+        if (dbData) {
+          existing = { id: dbData.id, email: dbData.email } as any;
+        }
+      } catch {}
+    }
+
     if (existing) {
       throw new Error('An account with this email already exists. Please switch to Sign In.');
     }
@@ -503,7 +585,7 @@ function useMediStockStoreInternal() {
     setCurrentUser(newUser);
 
     if (isSupabaseConfigured) {
-      dbService.saveProfile(newUser);
+      await dbService.saveProfile(newUser);
     }
     broadcastSyncMessage('USER_REGISTERED');
     logActivity('New User Registered', `${newUser.name} (${newUser.role})`, 'user');

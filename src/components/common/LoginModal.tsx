@@ -64,16 +64,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
 
     try {
       if (isSupabaseConfigured && supabase) {
-        // Attempt Supabase auth signInWithPassword
         try {
           await supabase.auth.signInWithPassword({ email, password });
         } catch {
-          // Fall through to strict local store verification
+          // Fall through
         }
       }
 
-      // Strict verification: will throw error if account not registered
-      const user = login(email, password);
+      // Strict verification: will throw error if account not registered or password wrong
+      const user = await login(email, password);
       setLoading(false);
       onClose();
 
@@ -100,11 +99,11 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
             },
           });
         } catch {
-          // Continue local registration
+          // Fall through
         }
       }
 
-      const user = registerUser({
+      const user = await registerUser({
         name,
         email,
         password,
@@ -120,14 +119,14 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
     }
   };
 
-  const handleGoogleSignInSubmit = (e: React.FormEvent) => {
+  const handleGoogleSignInSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
       // Strict: will throw error if Google account was not signed up first
-      const user = loginWithGoogle(googleEmail);
+      const user = await loginWithGoogle(googleEmail);
       setLoading(false);
       onClose();
 
@@ -138,13 +137,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
     }
   };
 
-  const handleGoogleSignUpSubmit = (e: React.FormEvent) => {
+  const handleGoogleSignUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
-      const user = registerWithGoogle({
+      const user = await registerWithGoogle({
         email: googleEmail,
         name: googleName,
         role: googleRole,
@@ -159,23 +158,8 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
     }
   };
 
-  const handleGoogleButtonClick = async () => {
+  const handleGoogleButtonClick = () => {
     setError(null);
-    // If Supabase Google OAuth is available, attempt real OAuth redirect first
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { error: oauthError } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: window.location.origin,
-          },
-        });
-        if (!oauthError) return;
-      } catch {
-        // Fallback to verified Google account modal
-      }
-    }
-    // Open Google email verification prompt
     setShowGoogleAuth(true);
   };
 
@@ -227,9 +211,29 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
           </div>
 
           {error && (
-            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-start gap-2 animate-in fade-in">
-              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <span className="leading-relaxed font-medium">{error}</span>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex flex-col gap-1.5 animate-in fade-in">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span className="leading-relaxed font-medium">{error}</span>
+              </div>
+              {mode === 'signin' && (error.includes('Sign Up') || error.includes('not found')) && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('signup'); setError(null); }}
+                  className="text-[11px] text-teal-700 font-bold hover:underline self-start pl-6 cursor-pointer"
+                >
+                  Click here to Sign Up now →
+                </button>
+              )}
+              {mode === 'signup' && error.includes('Sign In') && (
+                <button
+                  type="button"
+                  onClick={() => { setMode('signin'); setError(null); }}
+                  className="text-[11px] text-teal-700 font-bold hover:underline self-start pl-6 cursor-pointer"
+                >
+                  Click here to Sign In now →
+                </button>
+              )}
             </div>
           )}
 
@@ -245,7 +249,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                   </svg>
                   <span className="font-bold text-xs text-slate-800">
-                    {mode === 'signin' ? 'Google Account Sign In' : 'Google Account Sign Up'}
+                    {mode === 'signin' ? 'Sign In with Google' : 'Sign Up with Google'}
                   </span>
                 </div>
                 <button
@@ -253,7 +257,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
                   onClick={() => setShowGoogleAuth(false)}
                   className="text-xs text-slate-500 hover:text-slate-800 font-semibold cursor-pointer"
                 >
-                  Cancel
+                  Back
                 </button>
               </div>
 
@@ -273,7 +277,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
                     />
                   </div>
                   <p className="text-[11px] text-slate-500 leading-snug">
-                    One-click Google authentication. New Google accounts are automatically created and registered into the system.
+                    Enter your registered Google email to authenticate and access your account.
                   </p>
                   <button
                     type="submit"
@@ -282,6 +286,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
                   >
                     {loading ? 'Verifying...' : 'Verify & Sign In with Google'}
                   </button>
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setMode('signup'); setError(null); }}
+                      className="text-xs text-teal-600 hover:text-teal-700 font-semibold cursor-pointer underline"
+                    >
+                      Don't have an account? Sign Up with Google first →
+                    </button>
+                  </div>
                 </form>
               ) : (
                 <form onSubmit={handleGoogleSignUpSubmit} className="space-y-3">
@@ -334,6 +347,15 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onNavig
                   >
                     {loading ? 'Registering...' : 'Register Account with Google'}
                   </button>
+                  <div className="text-center pt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setMode('signin'); setError(null); }}
+                      className="text-xs text-teal-600 hover:text-teal-700 font-semibold cursor-pointer underline"
+                    >
+                      Already registered with Google? Sign In here →
+                    </button>
+                  </div>
                 </form>
               )}
             </div>
