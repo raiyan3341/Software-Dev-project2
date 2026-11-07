@@ -312,6 +312,108 @@ function useMediStockStoreInternal() {
     };
   }, [syncFromDatabase]);
 
+  // Listen for Supabase Google OAuth session and user profile synchronization
+  useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) return;
+    const sb = supabase;
+
+    const syncSessionUser = async (sessionUser: any) => {
+      if (!sessionUser?.email) return;
+      const email = sessionUser.email.toLowerCase();
+
+      // If already logged in as this user, avoid duplicate work
+      if (currentUser?.email?.toLowerCase() === email) return;
+
+      try {
+        // Query profiles to see if already registered
+        const { data: profile } = await sb
+          .from('profiles')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (profile) {
+          // Resolve role if approved organization
+          const linkedOrg = organizations.find(
+            o => (o.userId && o.userId === profile.id) ||
+                 o.id === profile.organization_id ||
+                 (o.email && o.email.toLowerCase() === email)
+          );
+          let resolvedRole = (profile.role || 'normal_user') as UserRole;
+          if (resolvedRole !== 'owner' && resolvedRole !== 'admin') {
+            if (linkedOrg && linkedOrg.verificationStatus === 'Approved') {
+              resolvedRole = 'organization';
+            } else {
+              resolvedRole = 'normal_user';
+            }
+          }
+
+          const existingUser: UserProfile = {
+            id: profile.id,
+            name: profile.full_name,
+            email: profile.email,
+            password: profile.password || 'password123',
+            avatar: profile.avatar_url || sessionUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80',
+            role: resolvedRole,
+            status: (profile.status || 'active') as 'active' | 'suspended',
+            organizationId: linkedOrg?.id || profile.organization_id || undefined,
+            phone: profile.phone || undefined,
+            createdAt: profile.created_at ? profile.created_at.split('T')[0] : '2025-01-01',
+          };
+          setCurrentUser(existingUser);
+          setUsersState(prev => [...prev.filter(u => u.email.toLowerCase() !== email), existingUser]);
+          saveToStorage(STORAGE_KEYS.USERS, [...users.filter(u => u.email.toLowerCase() !== email), existingUser]);
+          logActivity('Google Sign In', `${existingUser.name} (${existingUser.role})`, 'user');
+        } else {
+          // New Google account: auto-create in profiles table
+          const fullName = sessionUser.user_metadata?.full_name || 
+                           sessionUser.user_metadata?.name || 
+                           email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
+          const avatarUrl = sessionUser.user_metadata?.avatar_url || 
+                            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80';
+
+          const newProfile: UserProfile = {
+            id: sessionUser.id || generateUUID(),
+            name: fullName,
+            email: email,
+            password: 'google_oauth_user',
+            avatar: avatarUrl,
+            role: 'normal_user',
+            status: 'active',
+            createdAt: new Date().toISOString().split('T')[0],
+          };
+
+          await dbService.saveProfile(newProfile);
+          setCurrentUser(newProfile);
+          setUsersState(prev => [...prev.filter(u => u.email.toLowerCase() !== email), newProfile]);
+          saveToStorage(STORAGE_KEYS.USERS, [...users.filter(u => u.email.toLowerCase() !== email), newProfile]);
+          broadcastSyncMessage('USER_REGISTERED');
+          logActivity('Google Account Registered', `${newProfile.name} (${newProfile.role})`, 'user');
+        }
+      } catch (err) {
+        console.warn('Google OAuth session sync notice:', err);
+      }
+    };
+
+    // Check existing session on mount
+    sb.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        syncSessionUser(session.user);
+      }
+    });
+
+    // Listen to Supabase auth events (e.g. after redirect back from Google account selector)
+    const { data: { subscription } } = sb.auth.onAuthStateChange((event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') && session?.user) {
+        syncSessionUser(session.user);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [organizations]);
+
   // Multi-tab instant storage and BroadcastChannel synchronizer
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {

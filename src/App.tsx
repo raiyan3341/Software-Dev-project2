@@ -86,12 +86,17 @@ export default function App() {
   // Auto-detect return from Google OAuth
   React.useEffect(() => {
     if (window.location.hash.includes('access_token') || window.location.search.includes('code=')) {
-      handleNavigate('user-dashboard');
+      const target = currentUser?.role === 'owner' ? 'owner-dashboard'
+        : currentUser?.role === 'admin' ? 'admin-dashboard'
+        : currentUser?.role === 'organization' ? 'org-dashboard'
+        : 'user-dashboard';
+
+      handleNavigate(target);
       setTimeout(() => {
-        window.history.replaceState(null, '', window.location.pathname + '#user-dashboard');
+        window.history.replaceState(null, '', window.location.pathname + '#' + target);
       }, 500);
     }
-  }, []);
+  }, [currentUser]);
 
   // Listen to browser Back / Forward buttons and Hash changes
   React.useEffect(() => {
