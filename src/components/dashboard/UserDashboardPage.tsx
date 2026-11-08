@@ -68,9 +68,14 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
-  // Sync profile fields dynamically whenever currentUser changes or updates
+  // Track the user ID that the form was initialized for.
+  // ONLY re-populate form if the user was not initialized yet or if a different user logs in.
+  // NEVER wipe out active user edits or draft inputs during background polling!
+  const initializedUserIdRef = React.useRef<string | null>(currentUser?.id || null);
+
   React.useEffect(() => {
-    if (currentUser) {
+    if (currentUser && (!initializedUserIdRef.current || initializedUserIdRef.current !== currentUser.id)) {
+      initializedUserIdRef.current = currentUser.id;
       setName(currentUser.name || '');
       setPhone(currentUser.phone || '');
       setAvatar(currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80');
@@ -83,7 +88,7 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
         setTwoFactor(currentUser.settings.twoFactor);
       }
     }
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const recentProducts = products.slice(0, 4);
 

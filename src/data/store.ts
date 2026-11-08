@@ -157,8 +157,11 @@ function useMediStockStoreInternal() {
 
   // Storage Sync Helpers
   const setUsers = (u: UserProfile[]) => {
-    setUsersState(u);
-    saveToStorage(STORAGE_KEYS.USERS, u);
+    setUsersState(prev => {
+      if (prev.length === u.length && JSON.stringify(prev) === JSON.stringify(u)) return prev;
+      saveToStorage(STORAGE_KEYS.USERS, u);
+      return u;
+    });
   };
 
   const setCurrentUser = (u: UserProfile | null) => {
@@ -167,8 +170,11 @@ function useMediStockStoreInternal() {
   };
 
   const setProducts = (p: Product[]) => {
-    setProductsState(p);
-    saveToStorage(STORAGE_KEYS.PRODUCTS, p);
+    setProductsState(prev => {
+      if (prev.length === p.length && JSON.stringify(prev) === JSON.stringify(p)) return prev;
+      saveToStorage(STORAGE_KEYS.PRODUCTS, p);
+      return p;
+    });
   };
 
   const setCategories = (c: Category[]) => {
@@ -243,6 +249,20 @@ function useMediStockStoreInternal() {
           if (!curr) return null;
           const fresh = profileList.find(u => u.id === curr.id || u.email.toLowerCase() === curr.email.toLowerCase());
           if (!fresh) return curr;
+
+          const isDifferent =
+            fresh.name !== curr.name ||
+            (fresh.phone !== undefined && fresh.phone !== curr.phone) ||
+            (fresh.city !== undefined && fresh.city !== curr.city) ||
+            (fresh.address !== undefined && fresh.address !== curr.address) ||
+            (fresh.bloodGroup !== undefined && fresh.bloodGroup !== curr.bloodGroup) ||
+            (fresh.avatar && fresh.avatar !== curr.avatar) ||
+            (fresh.role && fresh.role !== curr.role);
+
+          if (!isDifferent) {
+            return curr;
+          }
+
           const merged: UserProfile = {
             ...curr,
             name: fresh.name,
