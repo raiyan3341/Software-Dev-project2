@@ -28,6 +28,9 @@ CREATE TABLE public.profiles (
   role TEXT NOT NULL DEFAULT 'normal_user',
   organization_id TEXT,
   phone TEXT,
+  city TEXT DEFAULT 'Dhaka',
+  address TEXT DEFAULT '',
+  blood_group TEXT DEFAULT 'B+',
   status TEXT NOT NULL DEFAULT 'active',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

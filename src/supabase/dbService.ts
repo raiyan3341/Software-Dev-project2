@@ -127,6 +127,9 @@ export const dbService = {
         role: (r.role || 'normal_user') as UserRole,
         status: (r.status || 'active') as 'active' | 'suspended',
         phone: r.phone || undefined,
+        city: r.city || undefined,
+        address: r.address || undefined,
+        bloodGroup: r.blood_group || undefined,
         organizationId: r.organization_id || undefined,
         createdAt: r.created_at ? r.created_at.split('T')[0] : '2025-01-01',
       }));
@@ -139,7 +142,7 @@ export const dbService = {
   async saveProfile(u: UserProfile): Promise<boolean> {
     if (!isSupabaseConfigured || !supabase) return false;
     try {
-      const payload = {
+      const payload: any = {
         id: u.id,
         email: u.email.toLowerCase(),
         full_name: u.name,
@@ -148,13 +151,33 @@ export const dbService = {
         role: u.role,
         organization_id: u.organizationId || null,
         phone: u.phone || null,
+        city: u.city || 'Dhaka',
+        address: u.address || '',
+        blood_group: u.bloodGroup || '',
         status: u.status || 'active',
         updated_at: new Date().toISOString(),
       };
       const { error } = await supabase.from('profiles').upsert(payload, { onConflict: 'email' });
       if (error) {
-        console.warn('Supabase saveProfile error:', error.message);
-        return false;
+        // If PostgreSQL does not have city/address columns yet, fallback safely
+        if (error.message.includes('column') || error.code === 'PGRST204') {
+          const safePayload = {
+            id: u.id,
+            email: u.email.toLowerCase(),
+            full_name: u.name,
+            password: u.password || 'password123',
+            avatar_url: u.avatar,
+            role: u.role,
+            organization_id: u.organizationId || null,
+            phone: u.phone || null,
+            status: u.status || 'active',
+            updated_at: new Date().toISOString(),
+          };
+          await supabase.from('profiles').upsert(safePayload, { onConflict: 'email' });
+        } else {
+          console.warn('Supabase saveProfile error:', error.message);
+          return false;
+        }
       }
       return true;
     } catch (err) {

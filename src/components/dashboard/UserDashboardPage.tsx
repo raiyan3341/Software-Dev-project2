@@ -52,12 +52,12 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'blood' | 'notifications' | 'profile' | 'settings'>('dashboard');
 
   // Profile Form State
-  const [name, setName] = useState(currentUser?.name || 'Rahim Ahmed');
-  const [phone, setPhone] = useState(currentUser?.phone || '+880 1712 345678');
+  const [name, setName] = useState(currentUser?.name || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
   const [avatar, setAvatar] = useState(currentUser?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80');
   const [bloodGroup, setBloodGroup] = useState<BloodGroup>((currentUser?.bloodGroup as BloodGroup) || 'B+');
   const [city, setCity] = useState(currentUser?.city || 'Dhaka');
-  const [address, setAddress] = useState(currentUser?.address || 'Dhanmondi, Dhaka-1209');
+  const [address, setAddress] = useState(currentUser?.address || '');
   const [profileSaved, setProfileSaved] = useState(false);
 
   // Settings State
@@ -68,15 +68,15 @@ export const UserDashboardPage: React.FC<UserDashboardPageProps> = ({
   const [passwordSaved, setPasswordSaved] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
 
-  // Sync profile fields when currentUser changes
+  // Sync profile fields dynamically whenever currentUser changes or updates
   React.useEffect(() => {
     if (currentUser) {
       setName(currentUser.name || '');
       setPhone(currentUser.phone || '');
-      setAvatar(currentUser.avatar || '');
-      if (currentUser.bloodGroup) setBloodGroup(currentUser.bloodGroup as BloodGroup);
-      if (currentUser.city) setCity(currentUser.city);
-      if (currentUser.address) setAddress(currentUser.address);
+      setAvatar(currentUser.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80');
+      setBloodGroup((currentUser.bloodGroup as BloodGroup) || 'B+');
+      setCity(currentUser.city || 'Dhaka');
+      setAddress(currentUser.address || '');
       if (currentUser.settings) {
         setEmailAlerts(currentUser.settings.emailAlerts);
         setSmsAlerts(currentUser.settings.smsAlerts);

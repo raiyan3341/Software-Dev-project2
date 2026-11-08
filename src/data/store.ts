@@ -235,7 +235,27 @@ function useMediStockStoreInternal() {
       // 2. Fetch Profiles (Users)
       const dbProfiles = await dbService.fetchProfiles();
       if (dbProfiles !== null) {
-        setUsers(dbProfiles.length > 0 ? dbProfiles : INITIAL_USERS);
+        const profileList = dbProfiles.length > 0 ? dbProfiles : INITIAL_USERS;
+        setUsers(profileList);
+
+        // Keep currentUser updated with latest database values (city, address, phone, etc.)
+        setCurrentUserState(curr => {
+          if (!curr) return null;
+          const fresh = profileList.find(u => u.id === curr.id || u.email.toLowerCase() === curr.email.toLowerCase());
+          if (!fresh) return curr;
+          const merged: UserProfile = {
+            ...curr,
+            name: fresh.name,
+            phone: fresh.phone !== undefined ? fresh.phone : curr.phone,
+            city: fresh.city !== undefined ? fresh.city : curr.city,
+            address: fresh.address !== undefined ? fresh.address : curr.address,
+            bloodGroup: fresh.bloodGroup !== undefined ? fresh.bloodGroup : curr.bloodGroup,
+            avatar: fresh.avatar || curr.avatar,
+            role: fresh.role || curr.role,
+          };
+          saveToStorage(STORAGE_KEYS.CURRENT_USER, merged);
+          return merged;
+        });
       }
 
       // 3. Fetch Organizations
